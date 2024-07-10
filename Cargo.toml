@@ -1,0 +1,10 @@
+[package]
+name = "bitfit"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = ["bitfit_macros"]
+
+[dependencies]
+bitfit_macros = { path = "bitfit_macros", version = "0.1.0" }
