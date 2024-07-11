@@ -1,14 +1,38 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use core::num::TryFromIntError;
+
+pub trait Bitfield {
+    type Bits: BitStorage;
+    fn from_bits(bits: Self::Bits) -> Self;
+    fn to_bits(&self) -> Self::Bits;
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub trait BitStorage: Clone + Copy {
+    fn to_u64(self) -> u64;
+    fn from_u64(value: u64) -> Result<Self, TryFromIntError>;
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+impl BitStorage for u64 {
+    fn to_u64(self) -> u64 {
+        self
+    }
+
+    fn from_u64(value: u64) -> Result<Self, TryFromIntError> {
+        Ok(value)
     }
 }
+
+macro_rules! impl_bit_storage_for_small_int_types {
+    { $($ty: ty),+ } => {
+        $(
+            impl BitStorage for $ty {
+                fn to_u64(self) -> u64 {
+                    self as u64
+                }
+                fn from_u64(value: u64) -> Result<Self, TryFromIntError> {
+                    value.try_into()
+                }
+            }
+        )+
+    };
+}
+impl_bit_storage_for_small_int_types! { u8, u16, u32 }
