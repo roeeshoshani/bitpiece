@@ -1,10 +1,10 @@
 [package]
-name = "bitfit"
+name = "bitpiece"
 version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["bitfit_macros"]
+members = ["bitpiece_macros"]
 
 [dependencies]
-bitfit_macros = { path = "bitfit_macros", version = "0.1.0" }
+bitpiece_macros = { path = "bitpiece_macros", version = "0.1.0" }
