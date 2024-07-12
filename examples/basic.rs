@@ -30,6 +30,7 @@ fn print_val<T: Display>(val: T) {
 
 fn main() {
     let val: u8 = read_val();
-    let shit = Shit::from_bits(val);
-    print_val(shit.b().x());
+    let mut shit = Shit::from_bits(val);
+    shit.set_b(Nibble::from_bits(1));
+    print_val(shit.to_bits());
 }

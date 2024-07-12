@@ -1,4 +1,4 @@
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{
     parse_macro_input, parse_quote, spanned::Spanned, DeriveInput, Expr, Fields, FieldsNamed,
     Generics,
@@ -109,32 +109,85 @@ struct ExtractBitsParams {
     /// the bit order to use when extracting the bits
     bit_order: BitOrderExpr,
 }
+impl ExtractBitsParams {
+    pub fn mask(&self) -> proc_macro2::TokenStream {
+        let Self {
+            value_type,
+            extract_len,
+            ..
+        } = self;
+        quote! {
+            ((1 as #value_type) << (#extract_len)).saturating_sub(1)
+        }
+    }
+    pub fn shifted_mask(&self) -> proc_macro2::TokenStream {
+        let mask = self.mask();
+        let shift_amount = self.lowest_bit_index();
+        quote! {
+            (#mask) << (#shift_amount)
+        }
+    }
 
+    /// the lowest bit index of the extracted bit range.
+    /// this takes into account the bit order.
+    pub fn lowest_bit_index(&self) -> proc_macro2::TokenStream {
+        let Self {
+            value_len,
+            extract_offset,
+            extract_len,
+            bit_order,
+            ..
+        } = self;
+        quote! {
+            {
+                let bit_order: ::bitpiece::BitOrder = (#bit_order);
+                match bit_order {
+                    ::bitpiece::BitOrder::LsbFirst => {
+                        #extract_offset
+                    },
+                    ::bitpiece::BitOrder::MsbFirst => {
+                        (#value_len) - (#extract_offset) - (#extract_len)
+                    },
+                }
+            }
+        }
+    }
+}
+
+/// parameters for modifying some range of bits of a value
+struct ModifyBitsParams {
+    /// the parameters used for extracting the range of bits to be modified.
+    extract_params: ExtractBitsParams,
+    /// the new value of the specified bit range.
+    new_value: proc_macro2::TokenStream,
+}
+
+/// extracts some bits from a value
 fn extract_bits(params: ExtractBitsParams) -> proc_macro2::TokenStream {
-    let ExtractBitsParams {
-        value,
-        value_len,
-        value_type,
-        extract_offset,
-        extract_len,
-        bit_order,
-    } = params;
+    let mask = params.mask();
+    let shift_right_amount = params.lowest_bit_index();
+    let value = &params.value;
     quote! {
         {
-            let bit_order: ::bitpiece::BitOrder = (#bit_order);
-            let mask = ((1 as #value_type) << (#extract_len)).saturating_sub(1);
-            let shifted = match bit_order {
-                ::bitpiece::BitOrder::LsbFirst => {
-                    (#value) >> (#extract_offset)
-                },
-                ::bitpiece::BitOrder::MsbFirst => {
-                    let shift_right_amount = (
-                        (#value_len) - (#extract_offset) - (#extract_len)
-                    );
-                    (#value) >> shift_right_amount
-                },
-            };
-            shifted & mask
+            ((#value) >> (#shift_right_amount)) & (#mask)
+        }
+    }
+}
+
+/// returns an expression for the provided value with the specified bit range modified to its new value.
+fn modify_bits(params: ModifyBitsParams) -> proc_macro2::TokenStream {
+    let ModifyBitsParams {
+        extract_params,
+        new_value,
+    } = params;
+    let shifted_mask = extract_params.shifted_mask();
+    let shift_amount = extract_params.lowest_bit_index();
+    let value = &extract_params.value;
+    quote! {
+        {
+            let without_original_bits = (#value) & (!(#shifted_mask));
+            let shifted_new_value = (#new_value) << (#shift_amount);
+            without_original_bits | shifted_new_value
         }
     }
 }
@@ -151,8 +204,40 @@ fn bitpiece_named_struct_field_access_fns<'a>(
             let ident = &field.ident;
             let ty = &field.ty;
             quote! {
-                #vis fn #ident (&self) -> #ty {
+                #vis fn #ident (self) -> #ty {
                     <#ty as ::bitpiece::BitPiece>::from_bits(#bits as <#ty as ::bitpiece::BitPiece>::Bits)
+                }
+            }
+        })
+}
+
+fn bitpiece_named_struct_field_set_fns<'a>(
+    fields: &'a FieldsNamed,
+    bit_order: &'a BitOrderExpr,
+    storage_type: &'a TypeExpr,
+) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+    fields_offsets_and_lens(fields.named.iter())
+        .zip(fields.named.iter())
+        .map(|(offset_and_len, field)| {
+            let FieldOffsetAndLen { len, offset } = offset_and_len;
+            let vis = &field.vis;
+            let ident = field.ident.as_ref().unwrap();
+            let ty = &field.ty;
+            let set_ident = format_ident!("set_{}", ident);
+            let modified_value_expr = modify_bits(ModifyBitsParams {
+                extract_params: ExtractBitsParams {
+                    value: quote! { self.storage },
+                    value_len: TypeExpr::self_type().bit_len(),
+                    value_type: storage_type.clone(),
+                    extract_offset: offset,
+                    extract_len: len,
+                    bit_order: bit_order.clone(),
+                },
+                new_value: quote! { <#ty as ::bitpiece::BitPiece>::to_bits(new_value) },
+            });
+            quote! {
+                #vis fn #set_ident (&mut self, new_value: #ty) {
+                    self.storage = #modified_value_expr;
                 }
             }
         })
@@ -192,6 +277,7 @@ fn bitpiece_named_struct(
 
     let field_access_fns =
         bitpiece_named_struct_field_access_fns(fields, &bit_order, &storage_type);
+    let field_set_fns = bitpiece_named_struct_field_set_fns(fields, &bit_order, &storage_type);
 
     let vis = &input.vis;
     let ident = &input.ident;
@@ -204,6 +290,7 @@ fn bitpiece_named_struct(
         #implementation
         impl #ident {
             #(#field_access_fns)*
+            #(#field_set_fns)*
         }
     }
     .into()
