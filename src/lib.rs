@@ -1,26 +1,48 @@
 pub use bitpiece_macros::bitpiece;
 use core::num::TryFromIntError;
+use paste::paste;
 
 pub struct BitLength<const BITS: usize>;
+pub trait ExactAssociatedStorage {
+    type Storage: BitStorage;
+}
 pub trait AssociatedStorage {
     type Storage: BitStorage;
 }
-macro_rules! impl_associated_storage {
-    { $([$($bit_length: literal),+ $(,)?] => $storage_ty: ty),+ $(,)? } => {
+
+macro_rules! impl_exact_associated_storage {
+    { $($bit_length: literal),+ $(,)? } => {
         $(
-            $(
-                impl AssociatedStorage for BitLength<$bit_length> {
-                    type Storage = $storage_ty;
+            paste! {
+                impl ExactAssociatedStorage for BitLength<$bit_length> {
+                    type Storage = [<u $bit_length>];
                 }
-            )+
+            }
+        )+
+    }
+}
+impl_exact_associated_storage! { 8, 16, 32, 64 }
+
+const fn exact_associated_storage_bit_length(bit_length: usize) -> usize {
+    let power_of_2 = bit_length.next_power_of_two();
+    if power_of_2 < 8 {
+        8
+    } else {
+        power_of_2
+    }
+}
+macro_rules! impl_associated_storage {
+    { $($bit_length: literal),+ $(,)? } => {
+        $(
+            impl AssociatedStorage for BitLength<$bit_length> {
+                type Storage = <BitLength< { exact_associated_storage_bit_length($bit_length) } > as ExactAssociatedStorage>::Storage;
+            }
         )+
     };
 }
 impl_associated_storage! {
-    [1, 2, 3, 4, 5, 6, 7, 8] => u8,
-    [9, 10, 11, 12, 13, 14, 15, 16] => u16,
-    [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32] => u32,
-    [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64] => u64
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+    34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 }
 
 pub trait BitPiece: Clone + Copy {
@@ -74,102 +96,47 @@ impl BitPiece for bool {
     }
 }
 
+macro_rules! define_b_type {
+    { $bit_len: literal, $ident: ident } => {
+        #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        pub struct $ident(pub <BitLength<$bit_len> as AssociatedStorage>::Storage);
+        impl BitPiece for $ident {
+            const BITS: usize = $bit_len;
+
+            type Bits = <BitLength<$bit_len> as AssociatedStorage>::Storage;
+
+            fn from_bits(bits: Self::Bits) -> Self {
+                Self(bits)
+            }
+
+            fn to_bits(self) -> Self::Bits {
+                self.0
+            }
+        }
+        impl core::fmt::Display for $ident {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                core::fmt::Display::fmt(&self.0, f)
+            }
+        }
+        impl core::fmt::Debug for $ident {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                core::fmt::Debug::fmt(&self.0, f)
+            }
+        }
+    };
+}
 macro_rules! define_b_types {
-    {$($bit_len: literal => $ident: ident),+ $(,)?} => {
+    { $($bit_len: literal),+ $(,)? } => {
         $(
-            #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-            pub struct $ident(pub <BitLength<$bit_len> as AssociatedStorage>::Storage);
-            impl BitPiece for $ident {
-                const BITS: usize = $bit_len;
-
-                type Bits = <BitLength<$bit_len> as AssociatedStorage>::Storage;
-
-                fn from_bits(bits: Self::Bits) -> Self {
-                    Self(bits)
-                }
-
-                fn to_bits(self) -> Self::Bits {
-                    self.0
-                }
-            }
-            impl core::fmt::Display for $ident {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    core::fmt::Display::fmt(&self.0, f)
-                }
-            }
-            impl core::fmt::Debug for $ident {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    core::fmt::Debug::fmt(&self.0, f)
-                }
+            paste!{
+                define_b_type! { $bit_len, [<B $bit_len>] }
             }
         )+
     };
 }
 define_b_types! {
-    1 => B1,
-    2 => B2,
-    3 => B3,
-    4 => B4,
-    5 => B5,
-    6 => B6,
-    7 => B7,
-    8 => B8,
-    9 => B9,
-    10 => B10,
-    11 => B11,
-    12 => B12,
-    13 => B13,
-    14 => B14,
-    15 => B15,
-    16 => B16,
-    17 => B17,
-    18 => B18,
-    19 => B19,
-    20 => B20,
-    21 => B21,
-    22 => B22,
-    23 => B23,
-    24 => B24,
-    25 => B25,
-    26 => B26,
-    27 => B27,
-    28 => B28,
-    29 => B29,
-    30 => B30,
-    31 => B31,
-    32 => B32,
-    33 => B33,
-    34 => B34,
-    35 => B35,
-    36 => B36,
-    37 => B37,
-    38 => B38,
-    39 => B39,
-    40 => B40,
-    41 => B41,
-    42 => B42,
-    43 => B43,
-    44 => B44,
-    45 => B45,
-    46 => B46,
-    47 => B47,
-    48 => B48,
-    49 => B49,
-    50 => B50,
-    51 => B51,
-    52 => B52,
-    53 => B53,
-    54 => B54,
-    55 => B55,
-    56 => B56,
-    57 => B57,
-    58 => B58,
-    59 => B59,
-    60 => B60,
-    61 => B61,
-    62 => B62,
-    63 => B63,
-    64 => B64,
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+    34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
 }
 
 pub trait BitStorage: Clone + Copy {
