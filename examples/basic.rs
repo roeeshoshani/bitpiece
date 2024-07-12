@@ -1,21 +1,19 @@
 use std::{fmt::Display, str::FromStr};
 
-use bitpiece::{bitpiece, BitPiece};
+use bitpiece::*;
 
 #[bitpiece]
 #[derive(Debug, Clone, Copy)]
 struct Shit {
-    n1: Nibble,
-    n2: Nibble,
+    a: Nibble,
+    b: Nibble,
 }
 
 #[bitpiece]
 #[derive(Debug, Clone, Copy)]
 struct Nibble {
-    b1: bool,
-    b2: bool,
-    b3: bool,
-    b4: bool,
+    x: B2,
+    y: B2,
 }
 
 #[inline(never)]
@@ -33,5 +31,5 @@ fn print_val<T: Display>(val: T) {
 fn main() {
     let val: u8 = read_val();
     let shit = Shit::from_bits(val);
-    print_val(shit.n2().b2());
+    print_val(shit.b().x());
 }

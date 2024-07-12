@@ -74,6 +74,104 @@ impl BitPiece for bool {
     }
 }
 
+macro_rules! define_b_types {
+    {$($bit_len: literal => $ident: ident),+ $(,)?} => {
+        $(
+            #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+            pub struct $ident(pub <BitLength<$bit_len> as AssociatedStorage>::Storage);
+            impl BitPiece for $ident {
+                const BITS: usize = $bit_len;
+
+                type Bits = <BitLength<$bit_len> as AssociatedStorage>::Storage;
+
+                fn from_bits(bits: Self::Bits) -> Self {
+                    Self(bits)
+                }
+
+                fn to_bits(self) -> Self::Bits {
+                    self.0
+                }
+            }
+            impl core::fmt::Display for $ident {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    core::fmt::Display::fmt(&self.0, f)
+                }
+            }
+            impl core::fmt::Debug for $ident {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    core::fmt::Debug::fmt(&self.0, f)
+                }
+            }
+        )+
+    };
+}
+define_b_types! {
+    1 => B1,
+    2 => B2,
+    3 => B3,
+    4 => B4,
+    5 => B5,
+    6 => B6,
+    7 => B7,
+    8 => B8,
+    9 => B9,
+    10 => B10,
+    11 => B11,
+    12 => B12,
+    13 => B13,
+    14 => B14,
+    15 => B15,
+    16 => B16,
+    17 => B17,
+    18 => B18,
+    19 => B19,
+    20 => B20,
+    21 => B21,
+    22 => B22,
+    23 => B23,
+    24 => B24,
+    25 => B25,
+    26 => B26,
+    27 => B27,
+    28 => B28,
+    29 => B29,
+    30 => B30,
+    31 => B31,
+    32 => B32,
+    33 => B33,
+    34 => B34,
+    35 => B35,
+    36 => B36,
+    37 => B37,
+    38 => B38,
+    39 => B39,
+    40 => B40,
+    41 => B41,
+    42 => B42,
+    43 => B43,
+    44 => B44,
+    45 => B45,
+    46 => B46,
+    47 => B47,
+    48 => B48,
+    49 => B49,
+    50 => B50,
+    51 => B51,
+    52 => B52,
+    53 => B53,
+    54 => B54,
+    55 => B55,
+    56 => B56,
+    57 => B57,
+    58 => B58,
+    59 => B59,
+    60 => B60,
+    61 => B61,
+    62 => B62,
+    63 => B63,
+    64 => B64,
+}
+
 pub trait BitStorage: Clone + Copy {
     fn to_u64(self) -> u64;
     fn from_u64(value: u64) -> Result<Self, TryFromIntError>;
