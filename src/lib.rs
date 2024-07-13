@@ -231,7 +231,8 @@ macro_rules! impl_bit_storage_for_small_int_types {
 }
 impl_bit_storage_for_small_int_types! { u8, u16, u32 }
 
-/// a convenience type for interacting with the bits of an underlying storage type.
+/// a convenience type for interacting with the bits of an underlying storage type, starting at a specific bit index.
+/// this is useful for implementing mutable references.
 pub struct BitsMut<'s, S: BitStorage> {
     pub storage: &'s mut S,
     pub start_bit_index: usize,

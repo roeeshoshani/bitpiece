@@ -9,7 +9,7 @@ use quote::quote_spanned;
 use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
 use utils::{are_generics_empty, not_supported_err};
 
-/// an attribute for defining bitfield structs.
+/// an attribute for defining bitfields.
 #[proc_macro_attribute]
 pub fn bitpiece(
     args: proc_macro::TokenStream,
