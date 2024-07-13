@@ -1,7 +1,8 @@
+#![no_std]
+
 pub use bitpiece_macros::bitpiece;
-use core::num::TryFromIntError;
+use core::{marker::PhantomData, num::TryFromIntError};
 use paste::paste;
-use std::marker::PhantomData;
 
 pub struct BitLength<const BITS: usize>;
 pub trait ExactAssociatedStorage {
@@ -147,12 +148,12 @@ macro_rules! define_b_type {
                 }
             }
             impl core::fmt::Display for $ident {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                     core::fmt::Display::fmt(&self.0, f)
                 }
             }
             impl core::fmt::Debug for $ident {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                     core::fmt::Debug::fmt(&self.0, f)
                 }
             }
