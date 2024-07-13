@@ -84,7 +84,7 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
 }
 
 /// returns an iterator over the extracted bits of each field.
-fn named_struct_fields_extracted_bits<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
+fn fields_extracted_bits<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
     fields: I,
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
@@ -174,7 +174,7 @@ fn field_access_fns<'a>(
     fields: &'a FieldsNamed,
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
-    named_struct_fields_extracted_bits(fields.named.iter(), storage_type)
+    fields_extracted_bits(fields.named.iter(), storage_type)
         .zip(fields.named.iter())
         .map(|(bits, field)| {
             let vis = &field.vis;
