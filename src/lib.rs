@@ -46,8 +46,10 @@ impl_associated_storage! {
     34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 }
 
-pub trait BitPieceMut<'s, S: BitStorage + 's> {
+pub trait BitPieceMut<'s, S: BitStorage + 's, P: BitPiece> {
     fn new(storage: &'s mut S, start_bit_index: usize) -> Self;
+    fn get(&self) -> P;
+    fn set(&mut self, new_value: P);
 }
 
 pub trait BitPiece: Clone + Copy {
@@ -55,7 +57,7 @@ pub trait BitPiece: Clone + Copy {
 
     type Bits: BitStorage;
 
-    type Mut<'s, S: BitStorage + 's>: BitPieceMut<'s, S>;
+    type Mut<'s, S: BitStorage + 's>: BitPieceMut<'s, S, Self>;
 
     fn from_bits(bits: Self::Bits) -> Self;
 
@@ -86,21 +88,20 @@ pub struct GenericBitPieceMut<'s, S: BitStorage + 's, P: BitPiece> {
     bits: BitsMut<'s, S, P>,
 }
 
-impl<'s, S: BitStorage + 's, P: BitPiece> BitPieceMut<'s, S> for GenericBitPieceMut<'s, S, P> {
+impl<'s, S: BitStorage + 's, P: BitPiece> BitPieceMut<'s, S, P> for GenericBitPieceMut<'s, S, P> {
     fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
         Self {
             bits: BitsMut::new(storage, start_bit_index),
         }
     }
-}
 
-impl<'s, S: BitStorage + 's, P: BitPiece> GenericBitPieceMut<'s, S, P> {
-    pub fn get(&self) -> P {
+    fn get(&self) -> P {
         let bits = self.bits.get_bits(0, P::BITS);
         let correct_type_bits = P::Bits::from_u64(bits).unwrap();
         P::from_bits(correct_type_bits)
     }
-    pub fn set(&mut self, new_value: P) {
+
+    fn set(&mut self, new_value: P) {
         self.bits.set_bits(0, P::BITS, new_value.to_bits().to_u64())
     }
 }

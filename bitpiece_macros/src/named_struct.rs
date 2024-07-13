@@ -29,7 +29,7 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
         deserialization_code: quote! { Self { storage: bits } },
         ident_mut: ident_mut.clone(),
     });
-    let bitpiece_mut_impl = bitpiece_mut_gen_impl(&ident_mut);
+    let bitpiece_mut_impl = bitpiece_mut_gen_impl(&ident_mut, &input.ident);
 
     let field_access_fns = field_access_fns(fields, &storage_type);
     let field_set_fns = field_set_fns(fields, &storage_type);
@@ -63,17 +63,6 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
         #bitpiece_mut_impl
 
         impl<'s, S: ::bitpiece::BitStorage> #ident_mut<'s, S> {
-            pub fn get(&self) -> #ident {
-                let bits_u64 = self.bits.get_bits(0, <#ident as ::bitpiece::BitPiece>::BITS);
-                let bits = <<#ident as ::bitpiece::BitPiece>::Bits as ::bitpiece::BitStorage>::from_u64(bits_u64).unwrap();
-                <#ident as ::bitpiece::BitPiece>::from_bits(bits)
-            }
-            pub fn set(&mut self, new_value: #ident) {
-                let bits = <#ident as ::bitpiece::BitPiece>::to_bits(new_value);
-                let bits_u64 = <<#ident as ::bitpiece::BitPiece>::Bits as ::bitpiece::BitStorage>::to_u64(bits);
-                self.bits
-                    .set_bits(0, <#ident as ::bitpiece::BitPiece>::BITS, bits_u64)
-            }
             #(#mut_struct_field_access_fns)*
             #(#mut_struct_field_set_fns)*
             #(#mut_struct_field_mut_fns)*
@@ -244,7 +233,7 @@ fn mut_struct_field_mut_fns<'a>(
             quote! {
                 #vis fn #ident_mut<'a: 's>(&'a mut self) -> #mut_ty {
                     <
-                        #mut_ty as ::bitpiece::BitPieceMut<'s, S>
+                        #mut_ty as ::bitpiece::BitPieceMut<'s, S, #ty>
                     >::new(self.bits.storage, self.bits.start_bit_index + #offset)
                 }
             }
@@ -299,7 +288,7 @@ fn field_mut_fns<'a>(
             quote! {
                 #vis fn #ident_mut<'s>(&'s mut self) -> #mut_ty {
                     <
-                        #mut_ty as ::bitpiece::BitPieceMut<'s, #storage_type>
+                        #mut_ty as ::bitpiece::BitPieceMut<'s, #storage_type, #ty>
                     >::new(&mut self.storage, #offset)
                 }
             }
@@ -360,15 +349,26 @@ fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStream 
     }
 }
 
-/// generates the final implementation of the `BitPieceMut` trait for the type with the given identifier.
-fn bitpiece_mut_gen_impl(ident_mut: &syn::Ident) -> proc_macro2::TokenStream {
+/// generates the final implementation of the `BitPieceMut` trait given the implementation details.
+fn bitpiece_mut_gen_impl(ident_mut: &syn::Ident, ident: &syn::Ident) -> proc_macro2::TokenStream {
     quote! {
         #[automatically_derived]
-        impl<'s, S: ::bitpiece::BitStorage> ::bitpiece::BitPieceMut<'s, S> for #ident_mut<'s, S> {
+        impl<'s, S: ::bitpiece::BitStorage> ::bitpiece::BitPieceMut<'s, S, #ident> for #ident_mut<'s, S> {
             fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
                 Self {
                     bits: ::bitpiece::BitsMut::new(storage, start_bit_index),
                 }
+            }
+            fn get(&self) -> #ident {
+                let bits_u64 = self.bits.get_bits(0, <#ident as ::bitpiece::BitPiece>::BITS);
+                let bits = <<#ident as ::bitpiece::BitPiece>::Bits as ::bitpiece::BitStorage>::from_u64(bits_u64).unwrap();
+                <#ident as ::bitpiece::BitPiece>::from_bits(bits)
+            }
+            fn set(&mut self, new_value: #ident) {
+                let bits = <#ident as ::bitpiece::BitPiece>::to_bits(new_value);
+                let bits_u64 = <<#ident as ::bitpiece::BitPiece>::Bits as ::bitpiece::BitStorage>::to_u64(bits);
+                self.bits
+                    .set_bits(0, <#ident as ::bitpiece::BitPiece>::BITS, bits_u64)
             }
         }
     }
