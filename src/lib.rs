@@ -54,30 +54,25 @@ pub trait BitPiece: Clone + Copy {
 
     fn to_bits(self) -> Self::Bits;
 }
-macro_rules! impl_bitpiece_for_small_int_type {
-    { $ty: ty, $bit_len: literal, $storage_ty: ty } => {
-        impl BitPiece for $ty {
-            const BITS: usize = $bit_len;
-            type Bits = $storage_ty;
-            fn from_bits(bits: Self::Bits) -> Self {
-                bits as $ty
+macro_rules! impl_bitpiece_for_small_int_types {
+    { $($bit_len: literal),+ $(,)? } => {
+        $(
+            paste! {
+                impl BitPiece for [<u $bit_len>] {
+                    const BITS: usize = $bit_len;
+                    type Bits = Self;
+                    fn from_bits(bits: Self::Bits) -> Self {
+                        bits
+                    }
+                    fn to_bits(self) -> Self::Bits {
+                        self
+                    }
+                }
             }
-            fn to_bits(self) -> Self::Bits {
-                self as $storage_ty
-            }
-        }
+        )+
     };
 }
-macro_rules! impl_bitpiece_for_signed_unsigned_ints {
-    { $unsigned: ty, $signed: ty, $bit_len: literal } => {
-        impl_bitpiece_for_small_int_type! { $unsigned, $bit_len, $unsigned }
-        impl_bitpiece_for_small_int_type! { $signed, $bit_len, $unsigned }
-    };
-}
-impl_bitpiece_for_signed_unsigned_ints! { u8, i8, 8 }
-impl_bitpiece_for_signed_unsigned_ints! { u16, i16, 16 }
-impl_bitpiece_for_signed_unsigned_ints! { u32, i32, 32 }
-impl_bitpiece_for_signed_unsigned_ints! { u64, i64, 64 }
+impl_bitpiece_for_small_int_types! { 8, 16, 32 ,64 }
 impl BitPiece for bool {
     const BITS: usize = 1;
 
