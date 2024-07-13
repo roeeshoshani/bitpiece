@@ -1,8 +1,5 @@
-use quote::{format_ident, quote, quote_spanned, ToTokens};
-use syn::{
-    parse_macro_input, parse_quote, spanned::Spanned, DeriveInput, Expr, Fields, FieldsNamed,
-    Generics,
-};
+use quote::{format_ident, quote, quote_spanned};
+use syn::{parse_macro_input, spanned::Spanned, DeriveInput, FieldsNamed, Generics};
 
 /// an attribute for defining bitfield structs.
 #[proc_macro_attribute]
@@ -424,13 +421,6 @@ macro_rules! impl_to_tokens_for_newtype {
 struct TypeExpr(proc_macro2::TokenStream);
 impl_to_tokens_for_newtype! {TypeExpr}
 impl TypeExpr {
-    /// returns a type expression for the `Self` type.
-    fn self_type() -> Self {
-        Self(quote! {
-            Self
-        })
-    }
-
     /// creates a new type expression from the given type value.
     fn from_type(ty: &syn::Type) -> Self {
         Self(quote! {

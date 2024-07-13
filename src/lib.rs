@@ -1,7 +1,7 @@
 pub use bitpiece_macros::bitpiece;
 use core::num::TryFromIntError;
 use paste::paste;
-use std::{marker::PhantomData, ops::Deref};
+use std::marker::PhantomData;
 
 pub struct BitLength<const BITS: usize>;
 pub trait ExactAssociatedStorage {
