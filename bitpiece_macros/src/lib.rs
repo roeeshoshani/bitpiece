@@ -164,31 +164,39 @@ struct ModifyBitsParams {
 
 /// extracts some bits from a value
 fn extract_bits(params: ExtractBitsParams) -> proc_macro2::TokenStream {
-    let mask = params.mask();
-    let shift_right_amount = params.lowest_bit_index();
-    let value = &params.value;
+    let ExtractBitsParams {
+        value,
+        value_len,
+        value_type,
+        extract_offset,
+        extract_len,
+        bit_order,
+    } = &params;
     quote! {
-        {
-            ((#value) >> (#shift_right_amount)) & (#mask)
-        }
+        (
+            ::bitpiece::extract_bits(#value as u64, #value_len, #extract_offset, #extract_len, #bit_order) as #value_type
+        )
     }
 }
 
 /// returns an expression for the provided value with the specified bit range modified to its new value.
 fn modify_bits(params: ModifyBitsParams) -> proc_macro2::TokenStream {
     let ModifyBitsParams {
-        extract_params,
+        extract_params:
+            ExtractBitsParams {
+                value,
+                value_len,
+                value_type,
+                extract_offset,
+                extract_len,
+                bit_order,
+            },
         new_value,
     } = params;
-    let shifted_mask = extract_params.shifted_mask();
-    let shift_amount = extract_params.lowest_bit_index();
-    let value = &extract_params.value;
     quote! {
-        {
-            let without_original_bits = (#value) & (!(#shifted_mask));
-            let shifted_new_value = (#new_value) << (#shift_amount);
-            without_original_bits | shifted_new_value
-        }
+        (
+            ::bitpiece::modify_bits(#value as u64, #value_len, #extract_offset, #extract_len, #new_value as u64, #bit_order) as #value_type
+        )
     }
 }
 
@@ -243,6 +251,37 @@ fn bitpiece_named_struct_field_set_fns<'a>(
         })
 }
 
+fn bitpiece_named_struct_mut<'a>(
+    fields: &'a FieldsNamed,
+    bit_order: &'a BitOrderExpr,
+    storage_type: &'a TypeExpr,
+) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+    fields_offsets_and_lens(fields.named.iter())
+        .zip(fields.named.iter())
+        .map(|(offset_and_len, field)| {
+            let FieldOffsetAndLen { len, offset } = offset_and_len;
+            let vis = &field.vis;
+            let ident = field.ident.as_ref().unwrap();
+            let ty = &field.ty;
+            let set_ident = format_ident!("set_{}", ident);
+            let modified_value_expr = modify_bits(ModifyBitsParams {
+                extract_params: ExtractBitsParams {
+                    value: quote! { self.storage },
+                    value_len: TypeExpr::self_type().bit_len(),
+                    value_type: storage_type.clone(),
+                    extract_offset: offset,
+                    extract_len: len,
+                    bit_order: bit_order.clone(),
+                },
+                new_value: quote! { <#ty as ::bitpiece::BitPiece>::to_bits(new_value) },
+            });
+            quote! {
+                #vis fn #set_ident (&mut self, new_value: #ty) {
+                    self.storage = #modified_value_expr;
+                }
+            }
+        })
+}
 /// information about the offset and len of a field.
 struct FieldOffsetAndLen {
     len: BitLenExpr,
@@ -282,11 +321,16 @@ fn bitpiece_named_struct(
     let vis = &input.vis;
     let ident = &input.ident;
     let attrs = &input.attrs;
+    // let ident_mut = format_ident!("{}Mut", ident);
     quote! {
         #(#attrs)*
         #vis struct #ident {
             storage: #storage_type,
         }
+        // #vis struct #ident_mut <'a, S: ::bitpiece::BitStorage> {
+        //     storage: &mut S,
+        //     start_bit_index: usize,
+        // }
         #implementation
         impl #ident {
             #(#field_access_fns)*

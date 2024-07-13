@@ -1,6 +1,7 @@
 pub use bitpiece_macros::bitpiece;
 use core::num::TryFromIntError;
 use paste::paste;
+use std::marker::PhantomData;
 
 pub struct BitLength<const BITS: usize>;
 pub trait ExactAssociatedStorage {
@@ -134,11 +135,12 @@ define_b_types! {
     34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
 }
 
-pub trait BitStorage: Clone + Copy {
+pub trait BitStorage: BitPiece {
     fn to_u64(self) -> u64;
     fn from_u64(value: u64) -> Result<Self, TryFromIntError>;
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum BitOrder {
     LsbFirst,
     MsbFirst,
@@ -169,3 +171,106 @@ macro_rules! impl_bit_storage_for_small_int_types {
     };
 }
 impl_bit_storage_for_small_int_types! { u8, u16, u32 }
+
+pub struct BitsMut<'s, S: BitStorage, P: BitPiece> {
+    storage: &'s mut S,
+    start_bit_index: usize,
+    phantom: PhantomData<P>,
+}
+impl<'s, S: BitStorage, P: BitPiece> BitsMut<'s, S, P> {
+    pub fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
+        Self {
+            storage,
+            start_bit_index,
+            phantom: PhantomData,
+        }
+    }
+    fn get_bits(&mut self, rel_bit_index: usize, len: usize, bit_order: BitOrder) -> u64 {
+        extract_bits(
+            self.storage.to_u64(),
+            S::BITS,
+            self.start_bit_index + rel_bit_index,
+            len,
+            bit_order,
+        )
+    }
+    pub fn set_bits(
+        &mut self,
+        rel_bit_index: usize,
+        len: usize,
+        new_value: u64,
+        bit_order: BitOrder,
+    ) {
+        *self.storage = S::from_u64(modify_bits(
+            self.storage.to_u64(),
+            S::BITS,
+            self.start_bit_index + rel_bit_index,
+            len,
+            new_value,
+            bit_order,
+        ))
+        .unwrap();
+    }
+}
+
+#[inline(always)]
+const fn extract_bits_mask(len: usize) -> u64 {
+    (1u64 << len).wrapping_sub(1)
+}
+
+#[inline(always)]
+const fn extract_bits_shifted_mask(
+    value_len: usize,
+    offset: usize,
+    len: usize,
+    bit_order: BitOrder,
+) -> u64 {
+    extract_bits_mask(len) << extract_bits_lowest_bit_index(value_len, offset, len, bit_order)
+}
+
+/// the lowest bit index of the extracted bit range.
+/// this takes into account the bit order.
+#[inline(always)]
+const fn extract_bits_lowest_bit_index(
+    value_len: usize,
+    offset: usize,
+    len: usize,
+    bit_order: BitOrder,
+) -> usize {
+    match bit_order {
+        BitOrder::LsbFirst => offset,
+        BitOrder::MsbFirst => value_len - offset - len,
+    }
+}
+
+/// extracts some bits from a value
+#[inline(always)]
+pub const fn extract_bits(
+    value: u64,
+    value_len: usize,
+    offset: usize,
+    len: usize,
+    bit_order: BitOrder,
+) -> u64 {
+    let mask = extract_bits_mask(len);
+    let lowest_bit_index = extract_bits_lowest_bit_index(value_len, offset, len, bit_order);
+    (value >> lowest_bit_index) & mask
+}
+
+/// returns a new value with the specified bit range modified to the new value
+#[inline(always)]
+pub const fn modify_bits(
+    value: u64,
+    value_len: usize,
+    offset: usize,
+    len: usize,
+    new_value: u64,
+    bit_order: BitOrder,
+) -> u64 {
+    let shifted_mask = extract_bits_shifted_mask(value_len, offset, len, bit_order);
+    let lowest_bit_index = extract_bits_lowest_bit_index(value_len, offset, len, bit_order);
+
+    let without_original_bits = value & (!shifted_mask);
+    let shifted_new_value = new_value << lowest_bit_index;
+    without_original_bits | shifted_new_value
+}
