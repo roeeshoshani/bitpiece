@@ -96,13 +96,12 @@ impl<'s, S: BitStorage + 's, P: BitPiece> BitPieceMut<'s, S> for GenericBitPiece
 
 impl<'s, S: BitStorage + 's, P: BitPiece> GenericBitPieceMut<'s, S, P> {
     pub fn get(&self) -> P {
-        let bits = self.bits.get_bits(0, P::BITS, BitOrder::LsbFirst);
+        let bits = self.bits.get_bits(0, P::BITS);
         let correct_type_bits = P::Bits::from_u64(bits).unwrap();
         P::from_bits(correct_type_bits)
     }
     pub fn set(&mut self, new_value: P) {
-        self.bits
-            .set_bits(0, P::BITS, new_value.to_bits().to_u64(), BitOrder::LsbFirst)
+        self.bits.set_bits(0, P::BITS, new_value.to_bits().to_u64())
     }
 }
 
@@ -178,12 +177,6 @@ pub trait BitStorage: BitPiece {
     fn from_u64(value: u64) -> Result<Self, TryFromIntError>;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum BitOrder {
-    LsbFirst,
-    MsbFirst,
-}
-
 impl BitStorage for u64 {
     fn to_u64(self) -> u64 {
         self
@@ -226,31 +219,21 @@ impl<'s, S: BitStorage, P: BitPiece> BitsMut<'s, S, P> {
     }
 
     #[inline(always)]
-    pub fn get_bits(&self, rel_bit_index: usize, len: usize, bit_order: BitOrder) -> u64 {
+    pub fn get_bits(&self, rel_bit_index: usize, len: usize) -> u64 {
         extract_bits(
             self.storage.to_u64(),
-            S::BITS,
             self.start_bit_index + rel_bit_index,
             len,
-            bit_order,
         )
     }
 
     #[inline(always)]
-    pub fn set_bits(
-        &mut self,
-        rel_bit_index: usize,
-        len: usize,
-        new_value: u64,
-        bit_order: BitOrder,
-    ) {
+    pub fn set_bits(&mut self, rel_bit_index: usize, len: usize, new_value: u64) {
         *self.storage = S::from_u64(modify_bits(
             self.storage.to_u64(),
-            S::BITS,
             self.start_bit_index + rel_bit_index,
             len,
             new_value,
-            bit_order,
         ))
         .unwrap();
     }
@@ -262,58 +245,23 @@ const fn extract_bits_mask(len: usize) -> u64 {
 }
 
 #[inline(always)]
-const fn extract_bits_shifted_mask(
-    value_len: usize,
-    offset: usize,
-    len: usize,
-    bit_order: BitOrder,
-) -> u64 {
-    extract_bits_mask(len) << extract_bits_lowest_bit_index(value_len, offset, len, bit_order)
-}
-
-/// the lowest bit index of the extracted bit range.
-/// this takes into account the bit order.
-#[inline(always)]
-const fn extract_bits_lowest_bit_index(
-    value_len: usize,
-    offset: usize,
-    len: usize,
-    bit_order: BitOrder,
-) -> usize {
-    match bit_order {
-        BitOrder::LsbFirst => offset,
-        BitOrder::MsbFirst => value_len - offset - len,
-    }
+const fn extract_bits_shifted_mask(offset: usize, len: usize) -> u64 {
+    extract_bits_mask(len) << offset
 }
 
 /// extracts some bits from a value
 #[inline(always)]
-pub const fn extract_bits(
-    value: u64,
-    value_len: usize,
-    offset: usize,
-    len: usize,
-    bit_order: BitOrder,
-) -> u64 {
+pub const fn extract_bits(value: u64, offset: usize, len: usize) -> u64 {
     let mask = extract_bits_mask(len);
-    let lowest_bit_index = extract_bits_lowest_bit_index(value_len, offset, len, bit_order);
-    (value >> lowest_bit_index) & mask
+    (value >> offset) & mask
 }
 
 /// returns a new value with the specified bit range modified to the new value
 #[inline(always)]
-pub const fn modify_bits(
-    value: u64,
-    value_len: usize,
-    offset: usize,
-    len: usize,
-    new_value: u64,
-    bit_order: BitOrder,
-) -> u64 {
-    let shifted_mask = extract_bits_shifted_mask(value_len, offset, len, bit_order);
-    let lowest_bit_index = extract_bits_lowest_bit_index(value_len, offset, len, bit_order);
+pub const fn modify_bits(value: u64, offset: usize, len: usize, new_value: u64) -> u64 {
+    let shifted_mask = extract_bits_shifted_mask(offset, len);
 
     let without_original_bits = value & (!shifted_mask);
-    let shifted_new_value = new_value << lowest_bit_index;
+    let shifted_new_value = new_value << offset;
     without_original_bits | shifted_new_value
 }

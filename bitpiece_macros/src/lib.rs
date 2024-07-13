@@ -38,11 +38,7 @@ fn impl_bitpiece(
 
     match &input.data {
         syn::Data::Struct(data_struct) => match &data_struct.fields {
-            syn::Fields::Named(fields) => bitpiece_named_struct(
-                &input,
-                &fields,
-                BitOrderExpr(quote! { ::bitpiece::BitOrder::LsbFirst }),
-            ),
+            syn::Fields::Named(fields) => bitpiece_named_struct(&input, &fields),
             syn::Fields::Unnamed(_) => not_supported_err("unnamed structs"),
             syn::Fields::Unit => not_supported_err("empty structs"),
         },
@@ -61,18 +57,15 @@ fn are_generics_empty(generics: &Generics) -> bool {
 /// returns an iterator over the extracted bits of each field.
 fn named_struct_fields_extracted_bits<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
     fields: I,
-    bit_order: &'a BitOrderExpr,
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields_offsets_and_lens(fields).map(|offset_and_len| {
         let FieldOffsetAndLen { len, offset } = offset_and_len;
         extract_bits(ExtractBitsParams {
             value: quote! { self.storage },
-            value_len: TypeExpr::self_type().bit_len(),
             value_type: storage_type.clone(),
             extract_offset: offset,
             extract_len: len,
-            bit_order: bit_order.clone(),
         })
     })
 }
@@ -98,60 +91,12 @@ fn fields_offsets_and_lens<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
 struct ExtractBitsParams {
     /// the value to extract the bits from
     value: proc_macro2::TokenStream,
-    /// the bit length of the value to extract the bits from
-    value_len: BitLenExpr,
     /// the type of the value to extract the bits from
     value_type: TypeExpr,
     /// the offset at which to start extracting
     extract_offset: BitOffsetExpr,
     /// the amount of bits to extract
     extract_len: BitLenExpr,
-    /// the bit order to use when extracting the bits
-    bit_order: BitOrderExpr,
-}
-impl ExtractBitsParams {
-    pub fn mask(&self) -> proc_macro2::TokenStream {
-        let Self {
-            value_type,
-            extract_len,
-            ..
-        } = self;
-        quote! {
-            ((1 as #value_type) << (#extract_len)).saturating_sub(1)
-        }
-    }
-    pub fn shifted_mask(&self) -> proc_macro2::TokenStream {
-        let mask = self.mask();
-        let shift_amount = self.lowest_bit_index();
-        quote! {
-            (#mask) << (#shift_amount)
-        }
-    }
-
-    /// the lowest bit index of the extracted bit range.
-    /// this takes into account the bit order.
-    pub fn lowest_bit_index(&self) -> proc_macro2::TokenStream {
-        let Self {
-            value_len,
-            extract_offset,
-            extract_len,
-            bit_order,
-            ..
-        } = self;
-        quote! {
-            {
-                let bit_order: ::bitpiece::BitOrder = (#bit_order);
-                match bit_order {
-                    ::bitpiece::BitOrder::LsbFirst => {
-                        #extract_offset
-                    },
-                    ::bitpiece::BitOrder::MsbFirst => {
-                        (#value_len) - (#extract_offset) - (#extract_len)
-                    },
-                }
-            }
-        }
-    }
 }
 
 /// parameters for modifying some range of bits of a value
@@ -166,15 +111,13 @@ struct ModifyBitsParams {
 fn extract_bits(params: ExtractBitsParams) -> proc_macro2::TokenStream {
     let ExtractBitsParams {
         value,
-        value_len,
         value_type,
         extract_offset,
         extract_len,
-        bit_order,
     } = &params;
     quote! {
         (
-            ::bitpiece::extract_bits(#value as u64, #value_len, #extract_offset, #extract_len, #bit_order) as #value_type
+            ::bitpiece::extract_bits(#value as u64, #extract_offset, #extract_len) as #value_type
         )
     }
 }
@@ -185,27 +128,24 @@ fn modify_bits(params: ModifyBitsParams) -> proc_macro2::TokenStream {
         extract_params:
             ExtractBitsParams {
                 value,
-                value_len,
                 value_type,
                 extract_offset,
                 extract_len,
-                bit_order,
             },
         new_value,
     } = params;
     quote! {
         (
-            ::bitpiece::modify_bits(#value as u64, #value_len, #extract_offset, #extract_len, #new_value as u64, #bit_order) as #value_type
+            ::bitpiece::modify_bits(#value as u64, #extract_offset, #extract_len, #new_value as u64) as #value_type
         )
     }
 }
 
 fn field_access_fns<'a>(
     fields: &'a FieldsNamed,
-    bit_order: &'a BitOrderExpr,
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
-    named_struct_fields_extracted_bits(fields.named.iter(), bit_order, storage_type)
+    named_struct_fields_extracted_bits(fields.named.iter(), storage_type)
         .zip(fields.named.iter())
         .map(|(bits, field)| {
             let vis = &field.vis;
@@ -221,7 +161,6 @@ fn field_access_fns<'a>(
 
 fn mut_struct_field_access_fns<'a>(
     fields: &'a FieldsNamed,
-    bit_order: &'a BitOrderExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields_offsets_and_lens(fields.named.iter())
         .zip(fields.named.iter())
@@ -230,11 +169,10 @@ fn mut_struct_field_access_fns<'a>(
             let vis = &field.vis;
             let ident = &field.ident;
             let ty = &field.ty;
-            let bit_order = bit_order.clone();
             quote! {
                 #vis fn #ident(&self) -> #ty {
                     <#ty as ::bitpiece::BitPiece>::from_bits(
-                        self.bits.get_bits(#offset, #len, #bit_order) as <#ty as ::bitpiece::BitPiece>::Bits
+                        self.bits.get_bits(#offset, #len) as <#ty as ::bitpiece::BitPiece>::Bits
                     )
                 }
             }
@@ -243,7 +181,6 @@ fn mut_struct_field_access_fns<'a>(
 
 fn mut_struct_field_set_fns<'a>(
     fields: &'a FieldsNamed,
-    bit_order: &'a BitOrderExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields_offsets_and_lens(fields.named.iter())
         .zip(fields.named.iter())
@@ -253,11 +190,10 @@ fn mut_struct_field_set_fns<'a>(
             let ident = field.ident.as_ref().unwrap();
             let ty = &field.ty;
             let set_ident = format_ident!("set_{}", ident);
-            let bit_order = bit_order.clone();
             quote! {
                 #vis fn #set_ident(&mut self, new_value: #ty) {
                     let new_value_bits = <#ty as ::bitpiece::BitPiece>::to_bits(new_value);
-                    self.bits.set_bits(#offset, #len, new_value_bits as u64, #bit_order)
+                    self.bits.set_bits(#offset, #len, new_value_bits as u64)
                 }
             }
         })
@@ -289,7 +225,6 @@ fn mut_struct_field_mut_fns<'a>(
 
 fn field_set_fns<'a>(
     fields: &'a FieldsNamed,
-    bit_order: &'a BitOrderExpr,
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields_offsets_and_lens(fields.named.iter())
@@ -303,11 +238,9 @@ fn field_set_fns<'a>(
             let modified_value_expr = modify_bits(ModifyBitsParams {
                 extract_params: ExtractBitsParams {
                     value: quote! { self.storage },
-                    value_len: TypeExpr::self_type().bit_len(),
                     value_type: storage_type.clone(),
                     extract_offset: offset,
                     extract_len: len,
-                    bit_order: bit_order.clone(),
                 },
                 new_value: quote! { <#ty as ::bitpiece::BitPiece>::to_bits(new_value) },
             });
@@ -350,11 +283,7 @@ struct FieldOffsetAndLen {
     offset: BitOffsetExpr,
 }
 
-fn bitpiece_named_struct(
-    input: &DeriveInput,
-    fields: &FieldsNamed,
-    bit_order: BitOrderExpr,
-) -> proc_macro::TokenStream {
+fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_macro::TokenStream {
     if !are_generics_empty(&input.generics) {
         return not_supported_err("generics");
     }
@@ -378,12 +307,12 @@ fn bitpiece_named_struct(
         ident_mut: ident_mut.clone(),
     });
 
-    let field_access_fns = field_access_fns(fields, &bit_order, &storage_type);
-    let field_set_fns = field_set_fns(fields, &bit_order, &storage_type);
+    let field_access_fns = field_access_fns(fields, &storage_type);
+    let field_set_fns = field_set_fns(fields, &storage_type);
     let field_mut_fns = field_mut_fns(fields, &storage_type);
 
-    let mut_struct_field_access_fns = mut_struct_field_access_fns(fields, &bit_order);
-    let mut_struct_field_set_fns = mut_struct_field_set_fns(fields, &bit_order);
+    let mut_struct_field_access_fns = mut_struct_field_access_fns(fields);
+    let mut_struct_field_set_fns = mut_struct_field_set_fns(fields);
     let mut_struct_field_mut_fns = mut_struct_field_mut_fns(fields);
 
     let vis = &input.vis;
@@ -413,7 +342,7 @@ fn bitpiece_named_struct(
         }
         impl<'s, S: ::bitpiece::BitStorage> #ident_mut<'s, S> {
             pub fn get(&self) -> #ident {
-                let bits_u64 = self.bits.get_bits(0, <#ident as ::bitpiece::BitPiece>::BITS, ::bitpiece::BitOrder::LsbFirst);
+                let bits_u64 = self.bits.get_bits(0, <#ident as ::bitpiece::BitPiece>::BITS);
                 let bits = <<#ident as ::bitpiece::BitPiece>::Bits as ::bitpiece::BitStorage>::from_u64(bits_u64).unwrap();
                 <#ident as ::bitpiece::BitPiece>::from_bits(bits)
             }
@@ -421,7 +350,7 @@ fn bitpiece_named_struct(
                 let bits = <#ident as ::bitpiece::BitPiece>::to_bits(new_value);
                 let bits_u64 = <<#ident as ::bitpiece::BitPiece>::Bits as ::bitpiece::BitStorage>::to_u64(bits);
                 self.bits
-                    .set_bits(0, <#ident as ::bitpiece::BitPiece>::BITS, bits_u64, BitOrder::LsbFirst)
+                    .set_bits(0, <#ident as ::bitpiece::BitPiece>::BITS, bits_u64)
             }
             #(#mut_struct_field_access_fns)*
             #(#mut_struct_field_set_fns)*
@@ -561,8 +490,3 @@ impl std::iter::Sum for BitLenExpr {
 /// an expression for a bit offset inside a bitfield.
 struct BitOffsetExpr(proc_macro2::TokenStream);
 impl_to_tokens_for_newtype! {BitOffsetExpr}
-
-/// an expression for the bit order of a bitfield.
-#[derive(Clone)]
-struct BitOrderExpr(proc_macro2::TokenStream);
-impl_to_tokens_for_newtype! {BitOrderExpr}
