@@ -1,4 +1,4 @@
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned};
 use syn::Generics;
 
 use crate::newtypes::{BitLenExpr, TypeExpr};
