@@ -26,14 +26,14 @@ pub fn gen_explicit_bit_length_assertion(
     actual_bit_length: &BitLenExpr,
 ) -> proc_macro2::TokenStream {
     match explicit_bit_length {
-        Some(explicit_bit_length) => comptime_assert_equal(explicit_bit_length, actual_bit_length),
+        Some(explicit_bit_length) => quote! {
+            const _: () = if (#explicit_bit_length) != (#actual_bit_length) {
+                panic!("explicit bit length does not match actual bit length")
+            } else {
+                ()
+            };
+        },
         None => quote! {},
-    }
-}
-
-pub fn comptime_assert_equal<A: ToTokens, B: ToTokens>(a: A, b: B) -> proc_macro2::TokenStream {
-    quote! {
-        const _: () = assert!(#a == #b);
     }
 }
 
