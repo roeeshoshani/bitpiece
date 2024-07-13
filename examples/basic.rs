@@ -7,6 +7,8 @@ use bitpiece::*;
 enum MyEnum {
     A0,
     A1,
+    A2,
+    A3,
 }
 
 #[bitpiece]
@@ -26,7 +28,7 @@ struct Shit {
 #[bitpiece]
 #[derive(Debug, Clone, Copy)]
 struct Nibble {
-    x: B2,
+    x: MyEnum,
     y: B2,
 }
 
@@ -45,6 +47,6 @@ fn print_val<T: Display>(val: T) {
 fn main() {
     let val: u16 = read_val();
     let mut big = Big::from_bits(val);
-    big.shit2_mut().nibble2_mut().y_mut().set(B2(1));
+    big.shit2_mut().nibble2_mut().x_mut().set(MyEnum::A2);
     print_val(big.to_bits());
 }
