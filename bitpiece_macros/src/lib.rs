@@ -1,8 +1,8 @@
-mod named_struct;
+mod named_structs;
 mod newtypes;
 mod utils;
 
-use named_struct::bitpiece_named_struct;
+use named_structs::bitpiece_named_struct;
 use quote::quote_spanned;
 use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
 use utils::not_supported_err;
