@@ -4,11 +4,21 @@ pub use bitpiece_macros::bitpiece;
 use core::{marker::PhantomData, num::TryFromIntError};
 use paste::paste;
 
+/// an empty struct used to represent a specific bit length.
+/// this is then combined with some traits ([`ExactAssociatedStorage`], [`AssociatedStorage`]) to perform operations on the
+/// specified bit length.
 pub struct BitLength<const BITS: usize>;
+
+/// a trait implemented for [`BitLength`] types that have an exact associated storage type, for example [`u8`] or [`u16`].
 pub trait ExactAssociatedStorage {
+    /// the exact storage type, for example [`u8`] or [`u16`].
     type Storage: BitStorage;
 }
+
+/// a trait implemented for all [`BitLength`] types that are small enough and provides the minimal storage type required for
+/// storing that amount of bits. for example for bit lengths `0..8` this will be [`u8`].
 pub trait AssociatedStorage {
+    /// the storage type required for storing that amount of bits. for example for bit lengths `0..8` this will be [`u8`].
     type Storage: BitStorage;
 }
 
@@ -25,6 +35,8 @@ macro_rules! impl_exact_associated_storage {
 }
 impl_exact_associated_storage! { 8, 16, 32, 64 }
 
+/// calculate the bit length of the smallest type required to store that amount of bits. for example for bits lengths `0..8` this
+/// will return `8`.
 const fn exact_associated_storage_bit_length(bit_length: usize) -> usize {
     let power_of_2 = bit_length.next_power_of_two();
     if power_of_2 < 8 {
@@ -47,21 +59,30 @@ impl_associated_storage! {
     34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 }
 
+/// a mutable reference to a bitpiece inside another bitpiece.
 pub trait BitPieceMut<'s, S: BitStorage + 's, P: BitPiece> {
     fn new(storage: &'s mut S, start_bit_index: usize) -> Self;
     fn get(&self) -> P;
     fn set(&mut self, new_value: P);
 }
 
+/// a bitpiece.
+/// this is the core trait of this crate and represents a type with a specified bit length which can be used in a standalone way
+/// or inside another bitpiece.
 pub trait BitPiece: Clone + Copy {
+    /// the length in bits of this type.
     const BITS: usize;
 
+    /// the storage type used internally to store the bits of this bitpiece.
     type Bits: BitStorage;
 
+    /// the type used to represent a mutable reference to this type inside another bitpiece.
     type Mut<'s, S: BitStorage + 's>: BitPieceMut<'s, S, Self>;
 
+    /// constructs this type from the given bits.
     fn from_bits(bits: Self::Bits) -> Self;
 
+    /// returns the underlying bits of this type.
     fn to_bits(self) -> Self::Bits;
 }
 macro_rules! impl_bitpiece_for_small_int_types {
@@ -85,6 +106,7 @@ macro_rules! impl_bitpiece_for_small_int_types {
 }
 impl_bitpiece_for_small_int_types! { 8, 16, 32 ,64 }
 
+/// a generic implementation of the [`BitPieceMut`] trait used for convenience.
 pub struct GenericBitPieceMut<'s, S: BitStorage + 's, P: BitPiece> {
     bits: BitsMut<'s, S, P>,
 }
@@ -130,6 +152,7 @@ impl BitPiece for bool {
 macro_rules! define_b_type {
     { $bit_len: literal, $ident: ident } => {
         paste! {
+            /// a type used to represent a field with a specific amount of bits.
             #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
             pub struct $ident(pub <BitLength<$bit_len> as AssociatedStorage>::Storage);
             impl BitPiece for $ident {
@@ -174,6 +197,7 @@ define_b_types! {
     34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
 }
 
+/// a type which can be used as the internal storage of a bitpiece.
 pub trait BitStorage: BitPiece {
     fn to_u64(self) -> u64;
     fn from_u64(value: u64) -> Result<Self, TryFromIntError>;
@@ -205,6 +229,7 @@ macro_rules! impl_bit_storage_for_small_int_types {
 }
 impl_bit_storage_for_small_int_types! { u8, u16, u32 }
 
+/// a convenience type for interacting with the bits of an underlying storage type.
 pub struct BitsMut<'s, S: BitStorage, P: BitPiece> {
     pub storage: &'s mut S,
     pub start_bit_index: usize,
@@ -220,6 +245,7 @@ impl<'s, S: BitStorage, P: BitPiece> BitsMut<'s, S, P> {
         }
     }
 
+    /// returns `len` bits starting at relative bit index `rel_bit_index`.
     #[inline(always)]
     pub fn get_bits(&self, rel_bit_index: usize, len: usize) -> u64 {
         extract_bits(
@@ -229,6 +255,7 @@ impl<'s, S: BitStorage, P: BitPiece> BitsMut<'s, S, P> {
         )
     }
 
+    /// modifies the `len` bits starting at relative bit index `rel_bit_index` to the given `new_value`.
     #[inline(always)]
     pub fn set_bits(&mut self, rel_bit_index: usize, len: usize, new_value: u64) {
         *self.storage = S::from_u64(modify_bits(
