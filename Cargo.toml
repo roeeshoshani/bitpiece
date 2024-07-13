@@ -2,6 +2,12 @@
 name = "bitpiece"
 version = "0.1.0"
 edition = "2021"
+authors = ["Roee Shoshani"]
+description = "bitfields for rust"
+repository = "https://github.com/roeeshoshani/bitpiece"
+license = "MIT"
+keywords = ["bitfield"]
+categories = ["embedded", "encoding", "no-std", "parsing"]
 
 [workspace]
 members = ["bitpiece_macros"]
