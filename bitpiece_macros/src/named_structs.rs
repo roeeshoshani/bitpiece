@@ -3,10 +3,17 @@ use syn::{DeriveInput, FieldsNamed};
 
 use crate::{
     newtypes::{BitLenExpr, BitOffsetExpr, TypeExpr},
-    utils::{bitpiece_gen_impl, not_supported_err, BitPieceGenImplParams},
+    utils::{
+        bitpiece_gen_impl, gen_explicit_bit_length_assertion, not_supported_err,
+        BitPieceGenImplParams,
+    },
 };
 
-pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_macro::TokenStream {
+pub fn bitpiece_named_struct(
+    input: &DeriveInput,
+    fields: &FieldsNamed,
+    explicit_bit_length: Option<usize>,
+) -> proc_macro::TokenStream {
     if fields.named.is_empty() {
         return not_supported_err("empty structs");
     }
@@ -20,7 +27,7 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
     let ident_mut = format_ident!("{}Mut", input.ident);
     let bitpiece_impl = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: input.ident.clone(),
-        bit_len: total_bit_length,
+        bit_len: total_bit_length.clone(),
         storage_type: storage_type.clone(),
         serialization_code: quote! { self.storage },
         deserialization_code: quote! { Self { storage: bits } },
@@ -36,10 +43,15 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
     let mut_struct_field_set_fns = mut_struct_field_set_fns(fields);
     let mut_struct_field_mut_fns = mut_struct_field_mut_fns(fields);
 
+    let explicit_bit_len_assertion =
+        gen_explicit_bit_length_assertion(explicit_bit_length, &total_bit_length);
+
     let vis = &input.vis;
     let ident = &input.ident;
     let attrs = &input.attrs;
     quote! {
+        #explicit_bit_len_assertion
+
         #(#attrs)*
         #vis struct #ident {
             storage: #storage_type,

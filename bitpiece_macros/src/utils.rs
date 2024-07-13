@@ -1,4 +1,4 @@
-use quote::{quote, quote_spanned};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::Generics;
 
 use crate::newtypes::{BitLenExpr, TypeExpr};
@@ -19,6 +19,22 @@ pub fn are_generics_empty(generics: &Generics) -> bool {
         && generics.params.is_empty()
         && generics.gt_token.is_none()
         && generics.where_clause.is_none()
+}
+
+pub fn gen_explicit_bit_length_assertion(
+    explicit_bit_length: Option<usize>,
+    actual_bit_length: &BitLenExpr,
+) -> proc_macro2::TokenStream {
+    match explicit_bit_length {
+        Some(explicit_bit_length) => comptime_assert_equal(explicit_bit_length, actual_bit_length),
+        None => quote! {},
+    }
+}
+
+pub fn comptime_assert_equal<A: ToTokens, B: ToTokens>(a: A, b: B) -> proc_macro2::TokenStream {
+    quote! {
+        const _: () = assert!(#a == #b);
+    }
 }
 
 /// parameters for generating an implementation of the `BitPiece` trait.

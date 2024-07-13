@@ -32,6 +32,7 @@ impl TypeExpr {
 }
 
 /// an expression for the serialized size of some type.
+#[derive(Clone)]
 pub struct BitLenExpr(pub proc_macro2::TokenStream);
 impl_to_tokens_for_newtype! {BitLenExpr}
 impl BitLenExpr {
