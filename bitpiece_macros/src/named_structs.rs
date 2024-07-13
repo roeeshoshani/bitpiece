@@ -3,13 +3,10 @@ use syn::{DeriveInput, FieldsNamed};
 
 use crate::{
     newtypes::{BitLenExpr, BitOffsetExpr, TypeExpr},
-    utils::{are_generics_empty, not_supported_err},
+    utils::{bitpiece_gen_impl, not_supported_err, BitPieceGenImplParams},
 };
 
 pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_macro::TokenStream {
-    if !are_generics_empty(&input.generics) {
-        return not_supported_err("generics");
-    }
     if fields.named.is_empty() {
         return not_supported_err("empty structs");
     }
@@ -27,7 +24,7 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
         storage_type: storage_type.clone(),
         serialization_code: quote! { self.storage },
         deserialization_code: quote! { Self { storage: bits } },
-        ident_mut: ident_mut.clone(),
+        mut_type: quote! { #ident_mut<'s, S> },
     });
     let bitpiece_mut_impl = bitpiece_mut_gen_impl(&ident_mut, &input.ident);
 
@@ -298,55 +295,6 @@ fn field_mut_fns<'a>(
 struct FieldOffsetAndLen {
     len: BitLenExpr,
     offset: BitOffsetExpr,
-}
-
-/// parameters for generating an implementation of the `BitPiece` trait.
-struct BitPieceGenImplParams {
-    /// the identifier of the type for which the trait is to be implemented.
-    type_ident: syn::Ident,
-
-    /// the identifier of the type's mutable bit access type.
-    ident_mut: syn::Ident,
-
-    /// the bit length of the type.
-    bit_len: BitLenExpr,
-
-    /// the bits storage type of this type.
-    storage_type: TypeExpr,
-
-    /// code for serializing this type.
-    /// this will be used as the body of the `to_bits` method.
-    serialization_code: proc_macro2::TokenStream,
-
-    /// code for deserializing this type.
-    /// this will be used as the body of the `from_bits` method.
-    deserialization_code: proc_macro2::TokenStream,
-}
-
-/// generates the final implementation of the `BitPiece` trait given the implementation details.
-fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStream {
-    let BitPieceGenImplParams {
-        type_ident,
-        ident_mut,
-        bit_len,
-        storage_type,
-        serialization_code,
-        deserialization_code,
-    } = params;
-    quote! {
-        #[automatically_derived]
-        impl ::bitpiece::BitPiece for #type_ident {
-            const BITS: usize = (#bit_len);
-            type Bits = (#storage_type);
-            type Mut<'s, S: BitStorage + 's> = #ident_mut<'s, S>;
-            fn from_bits(bits: Self::Bits) -> Self {
-                #deserialization_code
-            }
-            fn to_bits(self) -> Self::Bits {
-                #serialization_code
-            }
-        }
-    }
 }
 
 /// generates the final implementation of the `BitPieceMut` trait given the implementation details.

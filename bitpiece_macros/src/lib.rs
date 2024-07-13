@@ -1,11 +1,13 @@
+mod enums;
 mod named_structs;
 mod newtypes;
 mod utils;
 
+use enums::bitpiece_enum;
 use named_structs::bitpiece_named_struct;
 use quote::quote_spanned;
 use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
-use utils::not_supported_err;
+use utils::{are_generics_empty, not_supported_err};
 
 /// an attribute for defining bitfield structs.
 #[proc_macro_attribute]
@@ -28,13 +30,17 @@ fn impl_bitpiece(
     }
     let input = parse_macro_input!(input_tokens as DeriveInput);
 
+    if !are_generics_empty(&input.generics) {
+        return not_supported_err("generics");
+    }
+
     match &input.data {
         syn::Data::Struct(data_struct) => match &data_struct.fields {
-            syn::Fields::Named(fields) => bitpiece_named_struct(&input, &fields),
+            syn::Fields::Named(fields) => bitpiece_named_struct(&input, fields),
             syn::Fields::Unnamed(_) => not_supported_err("unnamed structs"),
             syn::Fields::Unit => not_supported_err("empty structs"),
         },
-        syn::Data::Enum(_) => not_supported_err("enums"),
+        syn::Data::Enum(data_enum) => bitpiece_enum(&input, data_enum),
         syn::Data::Union(_) => not_supported_err("unions"),
     }
 }

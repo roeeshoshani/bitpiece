@@ -4,6 +4,13 @@ use bitpiece::*;
 
 #[bitpiece]
 #[derive(Debug, Clone, Copy)]
+enum MyEnum {
+    A0,
+    A1,
+}
+
+#[bitpiece]
+#[derive(Debug, Clone, Copy)]
 struct Big {
     shit1: Shit,
     shit2: Shit,
