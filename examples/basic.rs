@@ -4,9 +4,16 @@ use bitpiece::*;
 
 #[bitpiece]
 #[derive(Debug, Clone, Copy)]
+struct Big {
+    shit1: Shit,
+    shit2: Shit,
+}
+
+#[bitpiece]
+#[derive(Debug, Clone, Copy)]
 struct Shit {
-    a: Nibble,
-    b: Nibble,
+    nibble1: Nibble,
+    nibble2: Nibble,
 }
 
 #[bitpiece]
@@ -14,17 +21,6 @@ struct Shit {
 struct Nibble {
     x: B2,
     y: B2,
-}
-
-struct NibbleMut<'a, S: BitStorage> {
-    storage: &'a mut S,
-    start_bit_index: usize,
-}
-impl<'a, S: BitStorage> NibbleMut<'a, S> {
-    pub fn set_x(&mut self, new_x: B2) {
-        let v = self.storage.to_u64();
-        *self.storage = S::from_u64(v | new_x.to_bits() as u64).unwrap();
-    }
 }
 
 #[inline(never)]
@@ -40,8 +36,8 @@ fn print_val<T: Display>(val: T) {
 }
 
 fn main() {
-    let val: u8 = read_val();
-    let mut shit = Shit::from_bits(val);
-    shit.set_b(Nibble::from_bits(1));
-    print_val(shit.to_bits());
+    let val: u16 = read_val();
+    let mut big = Big::from_bits(val);
+    big.shit2_mut().nibble2_mut().y_mut().set(B2(1));
+    print_val(big.to_bits());
 }

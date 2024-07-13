@@ -1,7 +1,7 @@
 pub use bitpiece_macros::bitpiece;
 use core::num::TryFromIntError;
 use paste::paste;
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::Deref};
 
 pub struct BitLength<const BITS: usize>;
 pub trait ExactAssociatedStorage {
@@ -46,10 +46,16 @@ impl_associated_storage! {
     34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 }
 
+pub trait BitPieceMut<'s, S: BitStorage + 's> {
+    fn new(storage: &'s mut S, start_bit_index: usize) -> Self;
+}
+
 pub trait BitPiece: Clone + Copy {
     const BITS: usize;
 
     type Bits: BitStorage;
+
+    type Mut<'s, S: BitStorage + 's>: BitPieceMut<'s, S>;
 
     fn from_bits(bits: Self::Bits) -> Self;
 
@@ -62,6 +68,7 @@ macro_rules! impl_bitpiece_for_small_int_types {
                 impl BitPiece for [<u $bit_len>] {
                     const BITS: usize = $bit_len;
                     type Bits = Self;
+                    type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
                     fn from_bits(bits: Self::Bits) -> Self {
                         bits
                     }
@@ -74,10 +81,37 @@ macro_rules! impl_bitpiece_for_small_int_types {
     };
 }
 impl_bitpiece_for_small_int_types! { 8, 16, 32 ,64 }
+
+pub struct GenericBitPieceMut<'s, S: BitStorage + 's, P: BitPiece> {
+    bits: BitsMut<'s, S, P>,
+}
+
+impl<'s, S: BitStorage + 's, P: BitPiece> BitPieceMut<'s, S> for GenericBitPieceMut<'s, S, P> {
+    fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
+        Self {
+            bits: BitsMut::new(storage, start_bit_index),
+        }
+    }
+}
+
+impl<'s, S: BitStorage + 's, P: BitPiece> GenericBitPieceMut<'s, S, P> {
+    pub fn get(&self) -> P {
+        let bits = self.bits.get_bits(0, P::BITS, BitOrder::LsbFirst);
+        let correct_type_bits = P::Bits::from_u64(bits).unwrap();
+        P::from_bits(correct_type_bits)
+    }
+    pub fn set(&mut self, new_value: P) {
+        self.bits
+            .set_bits(0, P::BITS, new_value.to_bits().to_u64(), BitOrder::LsbFirst)
+    }
+}
+
 impl BitPiece for bool {
     const BITS: usize = 1;
 
     type Bits = u8;
+
+    type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
 
     fn from_bits(bits: Self::Bits) -> Self {
         bits != 0
@@ -94,29 +128,33 @@ impl BitPiece for bool {
 
 macro_rules! define_b_type {
     { $bit_len: literal, $ident: ident } => {
-        #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-        pub struct $ident(pub <BitLength<$bit_len> as AssociatedStorage>::Storage);
-        impl BitPiece for $ident {
-            const BITS: usize = $bit_len;
+        paste! {
+            #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+            pub struct $ident(pub <BitLength<$bit_len> as AssociatedStorage>::Storage);
+            impl BitPiece for $ident {
+                const BITS: usize = $bit_len;
 
-            type Bits = <BitLength<$bit_len> as AssociatedStorage>::Storage;
+                type Bits = <BitLength<$bit_len> as AssociatedStorage>::Storage;
 
-            fn from_bits(bits: Self::Bits) -> Self {
-                Self(bits)
-            }
+                type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
 
-            fn to_bits(self) -> Self::Bits {
-                self.0
+                fn from_bits(bits: Self::Bits) -> Self {
+                    Self(bits)
+                }
+
+                fn to_bits(self) -> Self::Bits {
+                    self.0
+                }
             }
-        }
-        impl core::fmt::Display for $ident {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                core::fmt::Display::fmt(&self.0, f)
+            impl core::fmt::Display for $ident {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    core::fmt::Display::fmt(&self.0, f)
+                }
             }
-        }
-        impl core::fmt::Debug for $ident {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                core::fmt::Debug::fmt(&self.0, f)
+            impl core::fmt::Debug for $ident {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    core::fmt::Debug::fmt(&self.0, f)
+                }
             }
         }
     };
@@ -173,11 +211,12 @@ macro_rules! impl_bit_storage_for_small_int_types {
 impl_bit_storage_for_small_int_types! { u8, u16, u32 }
 
 pub struct BitsMut<'s, S: BitStorage, P: BitPiece> {
-    storage: &'s mut S,
-    start_bit_index: usize,
+    pub storage: &'s mut S,
+    pub start_bit_index: usize,
     phantom: PhantomData<P>,
 }
 impl<'s, S: BitStorage, P: BitPiece> BitsMut<'s, S, P> {
+    #[inline(always)]
     pub fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
         Self {
             storage,
@@ -185,7 +224,9 @@ impl<'s, S: BitStorage, P: BitPiece> BitsMut<'s, S, P> {
             phantom: PhantomData,
         }
     }
-    fn get_bits(&mut self, rel_bit_index: usize, len: usize, bit_order: BitOrder) -> u64 {
+
+    #[inline(always)]
+    pub fn get_bits(&self, rel_bit_index: usize, len: usize, bit_order: BitOrder) -> u64 {
         extract_bits(
             self.storage.to_u64(),
             S::BITS,
@@ -194,6 +235,8 @@ impl<'s, S: BitStorage, P: BitPiece> BitsMut<'s, S, P> {
             bit_order,
         )
     }
+
+    #[inline(always)]
     pub fn set_bits(
         &mut self,
         rel_bit_index: usize,

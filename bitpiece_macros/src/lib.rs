@@ -200,7 +200,7 @@ fn modify_bits(params: ModifyBitsParams) -> proc_macro2::TokenStream {
     }
 }
 
-fn bitpiece_named_struct_field_access_fns<'a>(
+fn field_access_fns<'a>(
     fields: &'a FieldsNamed,
     bit_order: &'a BitOrderExpr,
     storage_type: &'a TypeExpr,
@@ -219,7 +219,75 @@ fn bitpiece_named_struct_field_access_fns<'a>(
         })
 }
 
-fn bitpiece_named_struct_field_set_fns<'a>(
+fn mut_struct_field_access_fns<'a>(
+    fields: &'a FieldsNamed,
+    bit_order: &'a BitOrderExpr,
+) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+    fields_offsets_and_lens(fields.named.iter())
+        .zip(fields.named.iter())
+        .map(|(offset_and_len, field)| {
+            let FieldOffsetAndLen { len, offset } = offset_and_len;
+            let vis = &field.vis;
+            let ident = &field.ident;
+            let ty = &field.ty;
+            let bit_order = bit_order.clone();
+            quote! {
+                #vis fn #ident(&self) -> #ty {
+                    <#ty as ::bitpiece::BitPiece>::from_bits(
+                        self.bits.get_bits(#offset, #len, #bit_order) as <#ty as ::bitpiece::BitPiece>::Bits
+                    )
+                }
+            }
+        })
+}
+
+fn mut_struct_field_set_fns<'a>(
+    fields: &'a FieldsNamed,
+    bit_order: &'a BitOrderExpr,
+) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+    fields_offsets_and_lens(fields.named.iter())
+        .zip(fields.named.iter())
+        .map(|(offset_and_len, field)| {
+            let FieldOffsetAndLen { len, offset } = offset_and_len;
+            let vis = &field.vis;
+            let ident = field.ident.as_ref().unwrap();
+            let ty = &field.ty;
+            let set_ident = format_ident!("set_{}", ident);
+            let bit_order = bit_order.clone();
+            quote! {
+                #vis fn #set_ident(&mut self, new_value: #ty) {
+                    let new_value_bits = <#ty as ::bitpiece::BitPiece>::to_bits(new_value);
+                    self.bits.set_bits(#offset, #len, new_value_bits as u64, #bit_order)
+                }
+            }
+        })
+}
+
+fn mut_struct_field_mut_fns<'a>(
+    fields: &'a FieldsNamed,
+) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+    fields_offsets_and_lens(fields.named.iter())
+        .zip(fields.named.iter())
+        .map(|(offset_and_len, field)| {
+            let FieldOffsetAndLen { offset, .. } = offset_and_len;
+            let vis = &field.vis;
+            let ident = field.ident.as_ref().unwrap();
+            let ty = &field.ty;
+            let ident_mut = format_ident!("{}_mut", ident);
+            let mut_ty = quote! {
+                <#ty as ::bitpiece::BitPiece>::Mut<'s, S>
+            };
+            quote! {
+                #vis fn #ident_mut<'a: 's>(&'a mut self) -> #mut_ty {
+                    <
+                        #mut_ty as ::bitpiece::BitPieceMut<'s, S>
+                    >::new(self.bits.storage, self.bits.start_bit_index + #offset)
+                }
+            }
+        })
+}
+
+fn field_set_fns<'a>(
     fields: &'a FieldsNamed,
     bit_order: &'a BitOrderExpr,
     storage_type: &'a TypeExpr,
@@ -251,33 +319,27 @@ fn bitpiece_named_struct_field_set_fns<'a>(
         })
 }
 
-fn bitpiece_named_struct_mut<'a>(
+fn field_mut_fns<'a>(
     fields: &'a FieldsNamed,
-    bit_order: &'a BitOrderExpr,
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields_offsets_and_lens(fields.named.iter())
         .zip(fields.named.iter())
         .map(|(offset_and_len, field)| {
-            let FieldOffsetAndLen { len, offset } = offset_and_len;
+            let FieldOffsetAndLen { offset, .. } = offset_and_len;
             let vis = &field.vis;
             let ident = field.ident.as_ref().unwrap();
             let ty = &field.ty;
-            let set_ident = format_ident!("set_{}", ident);
-            let modified_value_expr = modify_bits(ModifyBitsParams {
-                extract_params: ExtractBitsParams {
-                    value: quote! { self.storage },
-                    value_len: TypeExpr::self_type().bit_len(),
-                    value_type: storage_type.clone(),
-                    extract_offset: offset,
-                    extract_len: len,
-                    bit_order: bit_order.clone(),
-                },
-                new_value: quote! { <#ty as ::bitpiece::BitPiece>::to_bits(new_value) },
-            });
+            let ident_mut = format_ident!("{}_mut", ident);
+            let storage_type = storage_type.clone();
+            let mut_ty = quote! {
+                <#ty as ::bitpiece::BitPiece>::Mut<'s, #storage_type>
+            };
             quote! {
-                #vis fn #set_ident (&mut self, new_value: #ty) {
-                    self.storage = #modified_value_expr;
+                #vis fn #ident_mut<'s>(&'s mut self) -> #mut_ty {
+                    <
+                        #mut_ty as ::bitpiece::BitPieceMut<'s, #storage_type>
+                    >::new(&mut self.storage, #offset)
                 }
             }
         })
@@ -306,35 +368,64 @@ fn bitpiece_named_struct(
     let total_bit_length: BitLenExpr = field_types.clone().map(|field_ty| field_ty.bit_len()).sum();
     let storage_type = total_bit_length.storage_type();
 
+    let ident_mut = format_ident!("{}Mut", input.ident);
     let implementation = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: input.ident.clone(),
         bit_len: total_bit_length,
         storage_type: storage_type.clone(),
         serialization_code: quote! { self.storage },
         deserialization_code: quote! { Self { storage: bits } },
+        ident_mut: ident_mut.clone(),
     });
 
-    let field_access_fns =
-        bitpiece_named_struct_field_access_fns(fields, &bit_order, &storage_type);
-    let field_set_fns = bitpiece_named_struct_field_set_fns(fields, &bit_order, &storage_type);
+    let field_access_fns = field_access_fns(fields, &bit_order, &storage_type);
+    let field_set_fns = field_set_fns(fields, &bit_order, &storage_type);
+    let field_mut_fns = field_mut_fns(fields, &storage_type);
+
+    let mut_struct_field_access_fns = mut_struct_field_access_fns(fields, &bit_order);
+    let mut_struct_field_set_fns = mut_struct_field_set_fns(fields, &bit_order);
+    let mut_struct_field_mut_fns = mut_struct_field_mut_fns(fields);
 
     let vis = &input.vis;
     let ident = &input.ident;
     let attrs = &input.attrs;
-    // let ident_mut = format_ident!("{}Mut", ident);
     quote! {
         #(#attrs)*
         #vis struct #ident {
             storage: #storage_type,
         }
-        // #vis struct #ident_mut <'a, S: ::bitpiece::BitStorage> {
-        //     storage: &mut S,
-        //     start_bit_index: usize,
-        // }
         #implementation
         impl #ident {
             #(#field_access_fns)*
             #(#field_set_fns)*
+            #(#field_mut_fns)*
+        }
+
+        #vis struct #ident_mut<'s, S: ::bitpiece::BitStorage> {
+            bits: ::bitpiece::BitsMut<'s, S, #ident>,
+        }
+        impl<'s, S: ::bitpiece::BitStorage> ::bitpiece::BitPieceMut<'s, S> for #ident_mut<'s, S> {
+            fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
+                Self {
+                    bits: ::bitpiece::BitsMut::new(storage, start_bit_index),
+                }
+            }
+        }
+        impl<'s, S: ::bitpiece::BitStorage> #ident_mut<'s, S> {
+            pub fn get(&self) -> #ident {
+                let bits_u64 = self.bits.get_bits(0, <#ident as ::bitpiece::BitPiece>::BITS, ::bitpiece::BitOrder::LsbFirst);
+                let bits = <<#ident as ::bitpiece::BitPiece>::Bits as ::bitpiece::BitStorage>::from_u64(bits_u64).unwrap();
+                <#ident as ::bitpiece::BitPiece>::from_bits(bits)
+            }
+            pub fn set(&mut self, new_value: #ident) {
+                let bits = <#ident as ::bitpiece::BitPiece>::to_bits(new_value);
+                let bits_u64 = <<#ident as ::bitpiece::BitPiece>::Bits as ::bitpiece::BitStorage>::to_u64(bits);
+                self.bits
+                    .set_bits(0, <#ident as ::bitpiece::BitPiece>::BITS, bits_u64, BitOrder::LsbFirst)
+            }
+            #(#mut_struct_field_access_fns)*
+            #(#mut_struct_field_set_fns)*
+            #(#mut_struct_field_mut_fns)*
         }
     }
     .into()
@@ -344,6 +435,9 @@ fn bitpiece_named_struct(
 struct BitPieceGenImplParams {
     /// the identifier of the type for which the trait is to be implemented.
     type_ident: syn::Ident,
+
+    /// the identifier of the type's mutable bit access type.
+    ident_mut: syn::Ident,
 
     /// the bit length of the type.
     bit_len: BitLenExpr,
@@ -364,6 +458,7 @@ struct BitPieceGenImplParams {
 fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStream {
     let BitPieceGenImplParams {
         type_ident,
+        ident_mut,
         bit_len,
         storage_type,
         serialization_code,
@@ -374,6 +469,7 @@ fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStream 
         impl ::bitpiece::BitPiece for #type_ident {
             const BITS: usize = (#bit_len);
             type Bits = (#storage_type);
+            type Mut<'s, S: BitStorage + 's> = #ident_mut<'s, S>;
             fn from_bits(bits: Self::Bits) -> Self {
                 #deserialization_code
             }
