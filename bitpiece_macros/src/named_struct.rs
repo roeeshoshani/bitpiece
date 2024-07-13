@@ -21,7 +21,7 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
     let storage_type = total_bit_length.storage_type();
 
     let ident_mut = format_ident!("{}Mut", input.ident);
-    let implementation = bitpiece_gen_impl(BitPieceGenImplParams {
+    let bitpiece_impl = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: input.ident.clone(),
         bit_len: total_bit_length,
         storage_type: storage_type.clone(),
@@ -29,6 +29,7 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
         deserialization_code: quote! { Self { storage: bits } },
         ident_mut: ident_mut.clone(),
     });
+    let bitpiece_mut_impl = bitpiece_mut_gen_impl(&ident_mut);
 
     let field_access_fns = field_access_fns(fields, &storage_type);
     let field_set_fns = field_set_fns(fields, &storage_type);
@@ -46,7 +47,9 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
         #vis struct #ident {
             storage: #storage_type,
         }
-        #implementation
+
+        #bitpiece_impl
+
         impl #ident {
             #(#field_access_fns)*
             #(#field_set_fns)*
@@ -56,13 +59,9 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
         #vis struct #ident_mut<'s, S: ::bitpiece::BitStorage> {
             bits: ::bitpiece::BitsMut<'s, S, #ident>,
         }
-        impl<'s, S: ::bitpiece::BitStorage> ::bitpiece::BitPieceMut<'s, S> for #ident_mut<'s, S> {
-            fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
-                Self {
-                    bits: ::bitpiece::BitsMut::new(storage, start_bit_index),
-                }
-            }
-        }
+
+        #bitpiece_mut_impl
+
         impl<'s, S: ::bitpiece::BitStorage> #ident_mut<'s, S> {
             pub fn get(&self) -> #ident {
                 let bits_u64 = self.bits.get_bits(0, <#ident as ::bitpiece::BitPiece>::BITS);
@@ -356,6 +355,20 @@ fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStream 
             }
             fn to_bits(self) -> Self::Bits {
                 #serialization_code
+            }
+        }
+    }
+}
+
+/// generates the final implementation of the `BitPieceMut` trait for the type with the given identifier.
+fn bitpiece_mut_gen_impl(ident_mut: &syn::Ident) -> proc_macro2::TokenStream {
+    quote! {
+        #[automatically_derived]
+        impl<'s, S: ::bitpiece::BitStorage> ::bitpiece::BitPieceMut<'s, S> for #ident_mut<'s, S> {
+            fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
+                Self {
+                    bits: ::bitpiece::BitsMut::new(storage, start_bit_index),
+                }
             }
         }
     }
