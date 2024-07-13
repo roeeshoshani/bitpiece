@@ -54,7 +54,7 @@ pub fn bitpiece_named_struct(input: &DeriveInput, fields: &FieldsNamed) -> proc_
         }
 
         #vis struct #ident_mut<'s, S: ::bitpiece::BitStorage> {
-            bits: ::bitpiece::BitsMut<'s, S, #ident>,
+            bits: ::bitpiece::BitsMut<'s, S>,
         }
 
         #bitpiece_mut_impl

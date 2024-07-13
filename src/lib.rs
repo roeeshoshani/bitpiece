@@ -108,13 +108,15 @@ impl_bitpiece_for_small_int_types! { 8, 16, 32 ,64 }
 
 /// a generic implementation of the [`BitPieceMut`] trait used for convenience.
 pub struct GenericBitPieceMut<'s, S: BitStorage + 's, P: BitPiece> {
-    bits: BitsMut<'s, S, P>,
+    bits: BitsMut<'s, S>,
+    phantom: PhantomData<P>,
 }
 
 impl<'s, S: BitStorage + 's, P: BitPiece> BitPieceMut<'s, S, P> for GenericBitPieceMut<'s, S, P> {
     fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
         Self {
             bits: BitsMut::new(storage, start_bit_index),
+            phantom: PhantomData,
         }
     }
 
@@ -230,18 +232,16 @@ macro_rules! impl_bit_storage_for_small_int_types {
 impl_bit_storage_for_small_int_types! { u8, u16, u32 }
 
 /// a convenience type for interacting with the bits of an underlying storage type.
-pub struct BitsMut<'s, S: BitStorage, P: BitPiece> {
+pub struct BitsMut<'s, S: BitStorage> {
     pub storage: &'s mut S,
     pub start_bit_index: usize,
-    phantom: PhantomData<P>,
 }
-impl<'s, S: BitStorage, P: BitPiece> BitsMut<'s, S, P> {
+impl<'s, S: BitStorage> BitsMut<'s, S> {
     #[inline(always)]
     pub fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
         Self {
             storage,
             start_bit_index,
-            phantom: PhantomData,
         }
     }
 
