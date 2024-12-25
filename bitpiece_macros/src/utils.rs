@@ -75,7 +75,7 @@ pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStr
         impl ::bitpiece::BitPiece for #type_ident {
             const BITS: usize = (#bit_len);
             type Bits = (#storage_type);
-            type Mut<'s, S: BitStorage + 's> = #mut_type;
+            type Mut<'s, S: ::bitpiece::BitStorage + 's> = #mut_type;
             fn from_bits(bits: Self::Bits) -> Self {
                 #deserialization_code
             }
