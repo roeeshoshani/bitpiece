@@ -1,5 +1,5 @@
 use quote::{format_ident, quote};
-use syn::{DeriveInput, FieldsNamed};
+use syn::{parse_quote, DeriveInput, FieldsNamed};
 
 use crate::{
     newtypes::{BitLenExpr, BitOffsetExpr, TypeExpr},
@@ -25,6 +25,7 @@ pub fn bitpiece_named_struct(
     let storage_type = total_bit_length.storage_type();
 
     let fields_struct_ident = format_ident!("{}Fields", input.ident);
+    let fields_struct_modified_fields = gen_fields_struct_modified_fields(fields);
 
     let zeroed_fn = gen_zeroed_fn(input);
 
@@ -85,9 +86,18 @@ pub fn bitpiece_named_struct(
             #(#mut_struct_field_mut_fns)*
         }
 
-        #vis struct #fields_struct_ident #fields
+        #vis struct #fields_struct_ident #fields_struct_modified_fields
     }
     .into()
+}
+
+fn gen_fields_struct_modified_fields<'a>(fields: &'a FieldsNamed) -> FieldsNamed {
+    let mut modified_fields = fields.clone();
+    for field in &mut modified_fields.named {
+        let inner_fields_ty = TypeExpr(quote! { field.ty }).fields_ty().0;
+        field.ty = parse_quote! { #inner_fields_ty };
+    }
+    modified_fields
 }
 
 /// returns an iterator over the extracted bits of each field.

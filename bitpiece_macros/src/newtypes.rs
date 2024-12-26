@@ -29,6 +29,14 @@ impl TypeExpr {
             <#self as ::bitpiece::BitPiece>::BITS
         })
     }
+
+    /// returns the fields type of this type.
+    /// this is only valid if the type implements the `BitPiece` trait.
+    pub fn fields_ty(&self) -> TypeExpr {
+        TypeExpr(quote! {
+            <#self as ::bitpiece::BitPiece>::Fields
+        })
+    }
 }
 
 /// an expression for the serialized size of some type.
