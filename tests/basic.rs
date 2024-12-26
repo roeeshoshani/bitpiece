@@ -17,14 +17,14 @@ struct BitPieceA {
 }
 
 #[bitpiece(35)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct BitPieceB {
     x: u32,
     y: B3,
 }
 
 #[bitpiece(38)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct BitPieceComplex {
     a: BitPieceA,
     b: BitPieceB,
@@ -66,15 +66,25 @@ fn bit_modification() {
 
 #[test]
 fn from_to_fields() {
-    let fields = BitPieceAFields {
-        x: true,
-        y: BitPieceEnum::Variant1,
+    let fields = BitPieceComplexFields {
+        a: BitPieceAFields {
+            x: true,
+            y: BitPieceEnum::Variant1,
+        },
+        b: BitPieceBFields {
+            x: 0b1111100,
+            y: B3(0b010),
+        },
     };
-    let value = BitPieceA::from_fields(fields);
+    let value = BitPieceComplex::from_fields(fields);
 
-    assert_eq!(value.x(), true);
-    assert_eq!(value.y(), BitPieceEnum::Variant1);
-    assert_eq!(value.storage, 0b011);
+    assert_eq!(value.a().x(), true);
+    assert_eq!(value.a().y(), BitPieceEnum::Variant1);
+    assert_eq!(value.a().storage, 0b011);
+    assert_eq!(value.b().x(), 0b1111100);
+    assert_eq!(value.b().y(), B3(0b010));
+    assert_eq!(value.b().storage, 0b01000000000000000000000000001111100);
+    assert_eq!(value.storage, 0b01000000000000000000000000001111100011);
 
     assert_eq!(value.to_fields(), fields);
 }
