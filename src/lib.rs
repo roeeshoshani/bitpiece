@@ -181,7 +181,7 @@ macro_rules! define_b_type {
     { $bit_len: literal, $ident: ident } => {
         paste! {
             /// a type used to represent a field with a specific amount of bits.
-            #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+            #[derive(Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
             pub struct $ident(pub <BitLength<$bit_len> as AssociatedStorage>::Storage);
             impl BitPiece for $ident {
                 const BITS: usize = $bit_len;
