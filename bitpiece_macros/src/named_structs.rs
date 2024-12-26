@@ -94,7 +94,8 @@ pub fn bitpiece_named_struct(
 fn gen_fields_struct_modified_fields<'a>(fields: &'a FieldsNamed) -> FieldsNamed {
     let mut modified_fields = fields.clone();
     for field in &mut modified_fields.named {
-        let inner_fields_ty = TypeExpr(quote! { field.ty }).fields_ty().0;
+        let ty = &field.ty;
+        let inner_fields_ty = TypeExpr(quote! { #ty }).fields_ty().0;
         field.ty = parse_quote! { #inner_fields_ty };
     }
     modified_fields
@@ -222,7 +223,7 @@ fn gen_to_fields<'a>(
     let field_initializers = fields.named.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
         quote! {
-            #field_ident: self.#field_ident(),
+            #field_ident: ::bitpiece::BitPiece::to_fields(self.#field_ident()),
         }
     });
     quote! {
