@@ -84,9 +84,7 @@ pub fn bitpiece_named_struct(
             #(#mut_struct_field_mut_fns)*
         }
 
-        #vis struct #fields_struct_ident {
-            #fields
-        }
+        #vis struct #fields_struct_ident #fields
     }
     .into()
 }
@@ -184,7 +182,7 @@ fn gen_zeroed_fn<'a>(input: &DeriveInput) -> proc_macro2::TokenStream {
     quote! {
         #vis fn zeroed() -> #ident {
             #ident {
-                storage: ::bitpiece::BitStorage::from_u64(0)
+                storage: ::bitpiece::BitStorage::from_u64(0).unwrap()
             }
         }
     }
@@ -201,7 +199,7 @@ fn gen_new_fn<'a>(
         let field_ident = field.ident.as_ref().unwrap();
         let field_set_fn_ident = format_ident!("set_{}", field_ident);
         quote! {
-            result.#field_set_fn_ident(params.#field_ident);
+            result.#field_set_fn_ident(fields.#field_ident);
         }
     });
     quote! {
