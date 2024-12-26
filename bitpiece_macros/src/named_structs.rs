@@ -17,6 +17,9 @@ pub fn bitpiece_named_struct(
     if fields.named.is_empty() {
         return not_supported_err("empty structs");
     }
+
+    let ident = &input.ident;
+
     let field_types = fields
         .named
         .iter()
@@ -26,8 +29,6 @@ pub fn bitpiece_named_struct(
 
     let fields_struct_ident = format_ident!("{}Fields", input.ident);
     let fields_struct_modified_fields = gen_fields_struct_modified_fields(fields);
-
-    let zeroed_fn = gen_zeroed_fn(input);
 
     let ident_mut = format_ident!("{}Mut", input.ident);
     let bitpiece_impl = bitpiece_gen_impl(BitPieceGenImplParams {
@@ -40,6 +41,11 @@ pub fn bitpiece_named_struct(
         fields_type: TypeExpr(quote! { #fields_struct_ident }),
         to_fields_code: gen_to_fields(fields, &fields_struct_ident),
         from_fields_code: gen_from_fields(fields, input),
+        zeroed_code: quote! {
+            #ident {
+                storage: ::bitpiece::BitStorage::from_u64(0).unwrap()
+            }
+        },
     });
     let bitpiece_mut_impl = bitpiece_mut_gen_impl(&ident_mut, &input.ident);
 
@@ -55,7 +61,6 @@ pub fn bitpiece_named_struct(
         gen_explicit_bit_length_assertion(explicit_bit_length, &total_bit_length);
 
     let vis = &input.vis;
-    let ident = &input.ident;
     let attrs = &input.attrs;
     quote! {
         #explicit_bit_len_assertion
@@ -69,7 +74,6 @@ pub fn bitpiece_named_struct(
         #bitpiece_impl
 
         impl #ident {
-            #zeroed_fn
             #(#field_access_fns)*
             #(#field_set_fns)*
             #(#field_mut_fns)*
@@ -187,18 +191,6 @@ fn modify_bits(params: ModifyBitsParams) -> proc_macro2::TokenStream {
         (
             ::bitpiece::modify_bits(#value as u64, #extract_offset, #extract_len, #new_value as u64) as #value_type
         )
-    }
-}
-
-fn gen_zeroed_fn<'a>(input: &DeriveInput) -> proc_macro2::TokenStream {
-    let vis = &input.vis;
-    let ident = &input.ident;
-    quote! {
-        #vis fn zeroed() -> #ident {
-            #ident {
-                storage: ::bitpiece::BitStorage::from_u64(0).unwrap()
-            }
-        }
     }
 }
 

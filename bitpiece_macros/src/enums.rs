@@ -129,6 +129,9 @@ pub fn bitpiece_enum(
         from_fields_code: quote! { fields },
         storage_type,
         bit_len,
+        zeroed_code: quote! {
+            ::bitpiece::BitPiece::from_bits(0)
+        },
     });
 
     quote! {

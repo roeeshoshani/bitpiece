@@ -82,6 +82,9 @@ pub trait BitPiece: Clone + Copy {
     /// the type which represents the expanded view of this bitpiece.
     type Fields;
 
+    /// constructs this type with a value of zero for all fields.
+    fn zeroed() -> Self;
+
     /// constructs this type from the given fields.
     fn from_fields(fields: Self::Fields) -> Self;
 
@@ -103,6 +106,9 @@ macro_rules! impl_bitpiece_for_small_int_types {
                     type Bits = Self;
                     type Fields = Self;
                     type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+                    fn zeroed() -> Self {
+                        0
+                    }
                     fn from_fields(fields: Self::Fields) -> Self {
                         fields
                     }
@@ -156,6 +162,10 @@ impl BitPiece for bool {
 
     type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
 
+    fn zeroed() -> Self {
+        return false;
+    }
+
     fn from_fields(fields: Self::Fields) -> Self {
         fields
     }
@@ -191,6 +201,10 @@ macro_rules! define_b_type {
                 type Fields = Self;
 
                 type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+
+                fn zeroed() -> Self {
+                    Self(0)
+                }
 
                 fn from_fields(fields: Self::Fields) -> Self {
                     fields
