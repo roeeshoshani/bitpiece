@@ -206,7 +206,7 @@ fn gen_from_fields<'a>(fields: &'a FieldsNamed, input: &DeriveInput) -> proc_mac
         let field_ident = field.ident.as_ref().unwrap();
         let field_set_fn_ident = format_ident!("set_{}", field_ident);
         quote! {
-            result.#field_set_fn_ident(fields.#field_ident);
+            result.#field_set_fn_ident(::bitpiece::BitPiece::from_fields(fields.#field_ident));
         }
     });
     quote! {
