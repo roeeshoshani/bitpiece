@@ -60,7 +60,8 @@ pub fn bitpiece_named_struct(
     quote! {
         #explicit_bit_len_assertion
 
-        #(#attrs)*
+        #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
+        #[repr(transparent)]
         #vis struct #ident {
             storage: #storage_type,
         }
@@ -86,6 +87,7 @@ pub fn bitpiece_named_struct(
             #(#mut_struct_field_mut_fns)*
         }
 
+        #(#attrs)*
         #vis struct #fields_struct_ident #fields_struct_modified_fields
     }
     .into()
