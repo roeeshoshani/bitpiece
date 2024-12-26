@@ -10,7 +10,7 @@ enum BitPieceEnum {
 }
 
 #[bitpiece(3)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct BitPieceA {
     x: bool,
     y: BitPieceEnum,
@@ -62,6 +62,21 @@ fn bit_modification() {
     assert_eq!(value.x(), false);
     assert_eq!(value.y(), BitPieceEnum::Variant3);
     assert_eq!(value.storage, 0b110);
+}
+
+#[test]
+fn from_to_fields() {
+    let fields = BitPieceAFields {
+        x: true,
+        y: BitPieceEnum::Variant1,
+    };
+    let value = BitPieceA::from_fields(fields);
+
+    assert_eq!(value.x(), true);
+    assert_eq!(value.y(), BitPieceEnum::Variant1);
+    assert_eq!(value.storage, 0b011);
+
+    assert_eq!(value.to_fields(), fields);
 }
 
 #[test]
