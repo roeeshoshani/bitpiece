@@ -27,7 +27,6 @@ pub fn bitpiece_named_struct(
     let fields_struct_ident = format_ident!("{}Fields", input.ident);
 
     let zeroed_fn = gen_zeroed_fn(input);
-    let new_fn = gen_new_fn(input, &fields_struct_ident, fields);
 
     let ident_mut = format_ident!("{}Mut", input.ident);
     let bitpiece_impl = bitpiece_gen_impl(BitPieceGenImplParams {
@@ -37,6 +36,9 @@ pub fn bitpiece_named_struct(
         serialization_code: quote! { self.storage },
         deserialization_code: quote! { Self { storage: bits } },
         mut_type: quote! { #ident_mut<'s, S> },
+        fields_type: TypeExpr(quote! { #fields_struct_ident }),
+        to_fields_code: gen_to_fields(fields, &fields_struct_ident),
+        from_fields_code: gen_from_fields(fields, input),
     });
     let bitpiece_mut_impl = bitpiece_mut_gen_impl(&ident_mut, &input.ident);
 
@@ -66,7 +68,6 @@ pub fn bitpiece_named_struct(
 
         impl #ident {
             #zeroed_fn
-            #new_fn
             #(#field_access_fns)*
             #(#field_set_fns)*
             #(#field_mut_fns)*
@@ -188,12 +189,7 @@ fn gen_zeroed_fn<'a>(input: &DeriveInput) -> proc_macro2::TokenStream {
     }
 }
 
-fn gen_new_fn<'a>(
-    input: &DeriveInput,
-    fields_struct_ident: &syn::Ident,
-    fields: &'a FieldsNamed,
-) -> proc_macro2::TokenStream {
-    let vis = &input.vis;
+fn gen_from_fields<'a>(fields: &'a FieldsNamed, input: &DeriveInput) -> proc_macro2::TokenStream {
     let ident = &input.ident;
     let field_set_calls = fields.named.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
@@ -203,10 +199,25 @@ fn gen_new_fn<'a>(
         }
     });
     quote! {
-        #vis fn new(fields: #fields_struct_ident) -> #ident {
-            let mut result = #ident::zeroed();
-            #(#field_set_calls)*
-            result
+        let mut result = #ident::zeroed();
+        #(#field_set_calls)*
+        result
+    }
+}
+
+fn gen_to_fields<'a>(
+    fields: &'a FieldsNamed,
+    fields_struct_ident: &syn::Ident,
+) -> proc_macro2::TokenStream {
+    let field_initializers = fields.named.iter().map(|field| {
+        let field_ident = field.ident.as_ref().unwrap();
+        quote! {
+            #field_ident: self.#field_ident(),
+        }
+    });
+    quote! {
+        #fields_struct_ident {
+            #(#field_initializers)*
         }
     }
 }

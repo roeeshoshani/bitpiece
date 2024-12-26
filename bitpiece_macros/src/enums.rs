@@ -124,6 +124,9 @@ pub fn bitpiece_enum(
             &bit_len,
             &storage_type,
         ),
+        fields_type: TypeExpr(quote! { Self }),
+        to_fields_code: quote! { self },
+        from_fields_code: quote! { fields },
         storage_type,
         bit_len,
     });
