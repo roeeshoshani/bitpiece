@@ -51,6 +51,18 @@ pub struct BitPieceGenImplParams {
     /// the bits storage type of this type.
     pub storage_type: TypeExpr,
 
+    /// the fields type of this type.
+    /// this is the type which represents the expanded view of this bitpiece.
+    pub fields_type: TypeExpr,
+
+    /// code for converting this type to its field values.
+    /// this will be used as the body of the `to_fields` method.
+    pub to_fields_code: proc_macro2::TokenStream,
+
+    /// code for constructing this type from its field values.
+    /// this will be used as the body of the `from_fields` method.
+    pub from_fields_code: proc_macro2::TokenStream,
+
     /// code for serializing this type.
     /// this will be used as the body of the `to_bits` method.
     pub serialization_code: proc_macro2::TokenStream,
@@ -66,7 +78,10 @@ pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStr
         type_ident,
         mut_type,
         bit_len,
+        fields_type,
         storage_type,
+        to_fields_code,
+        from_fields_code,
         serialization_code,
         deserialization_code,
     } = params;
@@ -75,7 +90,14 @@ pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStr
         impl ::bitpiece::BitPiece for #type_ident {
             const BITS: usize = (#bit_len);
             type Bits = (#storage_type);
+            type Fields = (#fields_type);
             type Mut<'s, S: ::bitpiece::BitStorage + 's> = #mut_type;
+            fn from_fields(fields: Self::Fields) -> Self {
+                #from_fields_code
+            }
+            fn to_fields(self) -> Self::Fields {
+                #to_fields_code
+            }
             fn from_bits(bits: Self::Bits) -> Self {
                 #deserialization_code
             }

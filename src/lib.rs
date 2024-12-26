@@ -79,6 +79,15 @@ pub trait BitPiece: Clone + Copy {
     /// the type used to represent a mutable reference to this type inside another bitpiece.
     type Mut<'s, S: BitStorage + 's>: BitPieceMut<'s, S, Self>;
 
+    /// the type which represents the expanded view of this bitpiece.
+    type Fields;
+
+    /// constructs this type from the given fields.
+    fn from_fields(fields: Self::Fields) -> Self;
+
+    /// return the values of all fields of this bitpiece.
+    fn to_fields(self) -> Self::Fields;
+
     /// constructs this type from the given bits.
     fn from_bits(bits: Self::Bits) -> Self;
 
@@ -92,7 +101,14 @@ macro_rules! impl_bitpiece_for_small_int_types {
                 impl BitPiece for [<u $bit_len>] {
                     const BITS: usize = $bit_len;
                     type Bits = Self;
+                    type Fields = Self;
                     type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+                    fn from_fields(fields: Self::Fields) -> Self {
+                        fields
+                    }
+                    fn to_fields(self) -> Self::Fields {
+                        self
+                    }
                     fn from_bits(bits: Self::Bits) -> Self {
                         bits
                     }
@@ -136,7 +152,17 @@ impl BitPiece for bool {
 
     type Bits = u8;
 
+    type Fields = bool;
+
     type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+
+    fn from_fields(fields: Self::Fields) -> Self {
+        fields
+    }
+
+    fn to_fields(self) -> Self::Fields {
+        self
+    }
 
     fn from_bits(bits: Self::Bits) -> Self {
         bits != 0
@@ -162,7 +188,17 @@ macro_rules! define_b_type {
 
                 type Bits = <BitLength<$bit_len> as AssociatedStorage>::Storage;
 
+                type Fields = Self;
+
                 type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+
+                fn from_fields(fields: Self::Fields) -> Self {
+                    fields
+                }
+
+                fn to_fields(self) -> Self::Fields {
+                    self
+                }
 
                 fn from_bits(bits: Self::Bits) -> Self {
                     Self(bits)

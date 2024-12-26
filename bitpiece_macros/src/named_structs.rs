@@ -1,5 +1,5 @@
 use quote::{format_ident, quote};
-use syn::{DeriveInput, FieldsNamed};
+use syn::{parse_quote, DeriveInput, FieldsNamed};
 
 use crate::{
     newtypes::{BitLenExpr, BitOffsetExpr, TypeExpr},
@@ -24,6 +24,11 @@ pub fn bitpiece_named_struct(
     let total_bit_length: BitLenExpr = field_types.clone().map(|field_ty| field_ty.bit_len()).sum();
     let storage_type = total_bit_length.storage_type();
 
+    let fields_struct_ident = format_ident!("{}Fields", input.ident);
+    let fields_struct_modified_fields = gen_fields_struct_modified_fields(fields);
+
+    let zeroed_fn = gen_zeroed_fn(input);
+
     let ident_mut = format_ident!("{}Mut", input.ident);
     let bitpiece_impl = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: input.ident.clone(),
@@ -32,16 +37,19 @@ pub fn bitpiece_named_struct(
         serialization_code: quote! { self.storage },
         deserialization_code: quote! { Self { storage: bits } },
         mut_type: quote! { #ident_mut<'s, S> },
+        fields_type: TypeExpr(quote! { #fields_struct_ident }),
+        to_fields_code: gen_to_fields(fields, &fields_struct_ident),
+        from_fields_code: gen_from_fields(fields, input),
     });
     let bitpiece_mut_impl = bitpiece_mut_gen_impl(&ident_mut, &input.ident);
 
-    let field_access_fns = field_access_fns(fields, &storage_type);
-    let field_set_fns = field_set_fns(fields, &storage_type);
-    let field_mut_fns = field_mut_fns(fields, &storage_type);
+    let field_access_fns = gen_field_access_fns(fields, &storage_type);
+    let field_set_fns = gen_field_set_fns(fields, &storage_type);
+    let field_mut_fns = gen_field_mut_fns(fields, &storage_type);
 
-    let mut_struct_field_access_fns = mut_struct_field_access_fns(fields);
-    let mut_struct_field_set_fns = mut_struct_field_set_fns(fields);
-    let mut_struct_field_mut_fns = mut_struct_field_mut_fns(fields);
+    let mut_struct_field_access_fns = gen_mut_struct_field_access_fns(fields);
+    let mut_struct_field_set_fns = gen_mut_struct_field_set_fns(fields);
+    let mut_struct_field_mut_fns = gen_mut_struct_field_mut_fns(fields);
 
     let explicit_bit_len_assertion =
         gen_explicit_bit_length_assertion(explicit_bit_length, &total_bit_length);
@@ -52,7 +60,8 @@ pub fn bitpiece_named_struct(
     quote! {
         #explicit_bit_len_assertion
 
-        #(#attrs)*
+        #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
+        #[repr(transparent)]
         #vis struct #ident {
             storage: #storage_type,
         }
@@ -60,6 +69,7 @@ pub fn bitpiece_named_struct(
         #bitpiece_impl
 
         impl #ident {
+            #zeroed_fn
             #(#field_access_fns)*
             #(#field_set_fns)*
             #(#field_mut_fns)*
@@ -76,8 +86,21 @@ pub fn bitpiece_named_struct(
             #(#mut_struct_field_set_fns)*
             #(#mut_struct_field_mut_fns)*
         }
+
+        #(#attrs)*
+        #vis struct #fields_struct_ident #fields_struct_modified_fields
     }
     .into()
+}
+
+fn gen_fields_struct_modified_fields<'a>(fields: &'a FieldsNamed) -> FieldsNamed {
+    let mut modified_fields = fields.clone();
+    for field in &mut modified_fields.named {
+        let ty = &field.ty;
+        let inner_fields_ty = TypeExpr(quote! { #ty }).fields_ty().0;
+        field.ty = parse_quote! { #inner_fields_ty };
+    }
+    modified_fields
 }
 
 /// returns an iterator over the extracted bits of each field.
@@ -167,7 +190,52 @@ fn modify_bits(params: ModifyBitsParams) -> proc_macro2::TokenStream {
     }
 }
 
-fn field_access_fns<'a>(
+fn gen_zeroed_fn<'a>(input: &DeriveInput) -> proc_macro2::TokenStream {
+    let vis = &input.vis;
+    let ident = &input.ident;
+    quote! {
+        #vis fn zeroed() -> #ident {
+            #ident {
+                storage: ::bitpiece::BitStorage::from_u64(0).unwrap()
+            }
+        }
+    }
+}
+
+fn gen_from_fields<'a>(fields: &'a FieldsNamed, input: &DeriveInput) -> proc_macro2::TokenStream {
+    let ident = &input.ident;
+    let field_set_calls = fields.named.iter().map(|field| {
+        let field_ident = field.ident.as_ref().unwrap();
+        let field_set_fn_ident = format_ident!("set_{}", field_ident);
+        quote! {
+            result.#field_set_fn_ident(::bitpiece::BitPiece::from_fields(fields.#field_ident));
+        }
+    });
+    quote! {
+        let mut result = #ident::zeroed();
+        #(#field_set_calls)*
+        result
+    }
+}
+
+fn gen_to_fields<'a>(
+    fields: &'a FieldsNamed,
+    fields_struct_ident: &syn::Ident,
+) -> proc_macro2::TokenStream {
+    let field_initializers = fields.named.iter().map(|field| {
+        let field_ident = field.ident.as_ref().unwrap();
+        quote! {
+            #field_ident: ::bitpiece::BitPiece::to_fields(self.#field_ident()),
+        }
+    });
+    quote! {
+        #fields_struct_ident {
+            #(#field_initializers)*
+        }
+    }
+}
+
+fn gen_field_access_fns<'a>(
     fields: &'a FieldsNamed,
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
@@ -185,7 +253,7 @@ fn field_access_fns<'a>(
         })
 }
 
-fn mut_struct_field_access_fns<'a>(
+fn gen_mut_struct_field_access_fns<'a>(
     fields: &'a FieldsNamed,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields_offsets_and_lens(fields.named.iter())
@@ -205,7 +273,7 @@ fn mut_struct_field_access_fns<'a>(
         })
 }
 
-fn mut_struct_field_set_fns<'a>(
+fn gen_mut_struct_field_set_fns<'a>(
     fields: &'a FieldsNamed,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields_offsets_and_lens(fields.named.iter())
@@ -225,7 +293,7 @@ fn mut_struct_field_set_fns<'a>(
         })
 }
 
-fn mut_struct_field_mut_fns<'a>(
+fn gen_mut_struct_field_mut_fns<'a>(
     fields: &'a FieldsNamed,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields_offsets_and_lens(fields.named.iter())
@@ -249,7 +317,7 @@ fn mut_struct_field_mut_fns<'a>(
         })
 }
 
-fn field_set_fns<'a>(
+fn gen_field_set_fns<'a>(
     fields: &'a FieldsNamed,
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
@@ -278,7 +346,7 @@ fn field_set_fns<'a>(
         })
 }
 
-fn field_mut_fns<'a>(
+fn gen_field_mut_fns<'a>(
     fields: &'a FieldsNamed,
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
