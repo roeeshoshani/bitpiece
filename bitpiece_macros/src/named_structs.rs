@@ -41,11 +41,6 @@ pub fn bitpiece_named_struct(
         fields_type: TypeExpr(quote! { #fields_struct_ident }),
         to_fields_code: gen_to_fields(fields, &fields_struct_ident),
         from_fields_code: gen_from_fields(fields, input),
-        zeroed_code: quote! {
-            #ident {
-                storage: ::bitpiece::BitStorage::from_u64(0).unwrap()
-            }
-        },
     });
     let bitpiece_mut_impl = bitpiece_mut_gen_impl(&ident_mut, &input.ident);
 
@@ -204,7 +199,7 @@ fn gen_from_fields<'a>(fields: &'a FieldsNamed, input: &DeriveInput) -> proc_mac
         }
     });
     quote! {
-        let mut result = #ident::zeroed();
+        let mut result = #ident::zeroes();
         #(#field_set_calls)*
         result
     }

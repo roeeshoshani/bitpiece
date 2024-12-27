@@ -43,7 +43,7 @@ fn bit_extraction() {
 
 #[test]
 fn bit_modification() {
-    let mut value = BitPieceA::zeroed();
+    let mut value = BitPieceA::zeroes();
     assert_eq!(value.x(), false);
     assert_eq!(value.y(), BitPieceEnum::Variant0);
     assert_eq!(value.storage, 0);
@@ -91,6 +91,6 @@ fn from_to_fields() {
 
 #[test]
 fn zeroed() {
-    let zeroed = BitPieceComplex::zeroed();
+    let zeroed = BitPieceComplex::zeroes();
     assert_eq!(zeroed.storage, 0);
 }

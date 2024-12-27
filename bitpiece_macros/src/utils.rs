@@ -55,9 +55,6 @@ pub struct BitPieceGenImplParams {
     /// this is the type which represents the expanded view of this bitpiece.
     pub fields_type: TypeExpr,
 
-    /// code for constructing this type with a value of zero for all fields.
-    pub zeroed_code: proc_macro2::TokenStream,
-
     /// code for converting this type to its field values.
     /// this will be used as the body of the `to_fields` method.
     pub to_fields_code: proc_macro2::TokenStream,
@@ -83,7 +80,6 @@ pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStr
         bit_len,
         fields_type,
         storage_type,
-        zeroed_code,
         to_fields_code,
         from_fields_code,
         serialization_code,
@@ -96,9 +92,6 @@ pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStr
             type Bits = (#storage_type);
             type Fields = (#fields_type);
             type Mut<'s, S: ::bitpiece::BitStorage + 's> = #mut_type;
-            fn zeroed() -> Self {
-                #zeroed_code
-            }
             fn from_fields(fields: Self::Fields) -> Self {
                 #from_fields_code
             }

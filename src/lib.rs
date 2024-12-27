@@ -83,7 +83,14 @@ pub trait BitPiece: Clone + Copy {
     type Fields;
 
     /// constructs this type with a value of zero for all fields.
-    fn zeroed() -> Self;
+    fn zeroes() -> Self {
+        Self::from_bits(Self::Bits::ZEROES)
+    }
+
+    /// constructs this type with a value of one for all fields.
+    fn ones() -> Self {
+        Self::from_bits(Self::Bits::ONES)
+    }
 
     /// constructs this type from the given fields.
     fn from_fields(fields: Self::Fields) -> Self;
@@ -106,9 +113,6 @@ macro_rules! impl_bitpiece_for_small_int_types {
                     type Bits = Self;
                     type Fields = Self;
                     type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
-                    fn zeroed() -> Self {
-                        0
-                    }
                     fn from_fields(fields: Self::Fields) -> Self {
                         fields
                     }
@@ -162,7 +166,7 @@ impl BitPiece for bool {
 
     type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
 
-    fn zeroed() -> Self {
+    fn zeroes() -> Self {
         return false;
     }
 
@@ -201,10 +205,6 @@ macro_rules! define_b_type {
                 type Fields = Self;
 
                 type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
-
-                fn zeroed() -> Self {
-                    Self(0)
-                }
 
                 fn from_fields(fields: Self::Fields) -> Self {
                     fields
@@ -251,11 +251,16 @@ define_b_types! {
 
 /// a type which can be used as the internal storage of a bitpiece.
 pub trait BitStorage: BitPiece {
+    const ZEROES: Self;
+    const ONES: Self;
     fn to_u64(self) -> u64;
     fn from_u64(value: u64) -> Result<Self, TryFromIntError>;
 }
 
 impl BitStorage for u64 {
+    const ZEROES: Self = 0;
+    const ONES: Self = u64::MAX;
+
     fn to_u64(self) -> u64 {
         self
     }
@@ -269,6 +274,8 @@ macro_rules! impl_bit_storage_for_small_int_types {
     { $($ty: ty),+ } => {
         $(
             impl BitStorage for $ty {
+                const ZEROES: Self = 0;
+                const ONES: Self = Self::MAX;
                 fn to_u64(self) -> u64 {
                     self as u64
                 }
