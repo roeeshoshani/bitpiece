@@ -1,6 +1,6 @@
 [package]
 name = "bitpiece"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 authors = ["Roee Shoshani"]
 description = "bitfields for rust"
@@ -13,5 +13,5 @@ categories = ["embedded", "encoding", "no-std", "parsing"]
 members = ["bitpiece_macros"]
 
 [dependencies]
-bitpiece_macros = { path = "bitpiece_macros", version = "0.1.6" }
+bitpiece_macros = { path = "bitpiece_macros", version = "0.1.7" }
 paste = "1.0.15"
