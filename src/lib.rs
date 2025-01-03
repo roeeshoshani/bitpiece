@@ -192,45 +192,75 @@ impl BitPiece for bool {
 }
 
 macro_rules! define_b_type {
-    { $bit_len: literal, $ident: ident } => {
-        paste! {
-            /// a type used to represent a field with a specific amount of bits.
-            #[derive(Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-            pub struct $ident(pub <BitLength<$bit_len> as AssociatedStorage>::Storage);
-            impl BitPiece for $ident {
-                const BITS: usize = $bit_len;
+    { $bit_len: literal, $ident: ident, $storage: ty } => {
+        /// a type used to represent a field with a specific amount of bits.
+        #[derive(Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        pub struct $ident($storage);
+        impl BitPiece for $ident {
+            const BITS: usize = $bit_len;
 
-                type Bits = <BitLength<$bit_len> as AssociatedStorage>::Storage;
+            type Bits = $storage;
 
-                type Fields = Self;
+            type Fields = Self;
 
-                type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+            type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
 
-                fn from_fields(fields: Self::Fields) -> Self {
-                    fields
-                }
+            fn from_fields(fields: Self::Fields) -> Self {
+                fields
+            }
 
-                fn to_fields(self) -> Self::Fields {
-                    self
-                }
+            fn to_fields(self) -> Self::Fields {
+                self
+            }
 
-                fn from_bits(bits: Self::Bits) -> Self {
-                    Self(bits)
-                }
+            fn from_bits(bits: Self::Bits) -> Self {
+                Self(bits)
+            }
 
-                fn to_bits(self) -> Self::Bits {
-                    self.0
+            fn to_bits(self) -> Self::Bits {
+                self.0
+            }
+        }
+        impl $ident {
+            /// the max allowed value for this type.
+            pub const MAX: Self = Self(<$storage>::MAX);
+
+            /// the bit length of this type.
+            pub const BIT_LENGTH: usize = $bit_len;
+
+            /// creates a new instance of this bitfield type with the given value.
+            ///
+            /// if the value does not fit within the bit length of this type, returns `None`.
+            pub fn new(value: $storage) -> Option<Self> {
+                if value <= Self::MAX.0 {
+                    Some(Self(value))
+                } else {
+                    None
                 }
             }
-            impl core::fmt::Display for $ident {
-                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                    core::fmt::Display::fmt(&self.0, f)
-                }
+
+            /// creates a new instance of this bitfield type with the given value, without checking that the value
+            /// fits within the bit length of this type.
+            ///
+            /// # safety
+            /// the provided value must fit withing the bit length of this type.
+            pub unsafe fn new_unchecked(value: $storage) -> Self {
+                Self(value)
             }
-            impl core::fmt::Debug for $ident {
-                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                    core::fmt::Debug::fmt(&self.0, f)
-                }
+
+            /// returns the inner value.
+            pub fn get(&self) -> $storage {
+                self.0
+            }
+        }
+        impl core::fmt::Display for $ident {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                core::fmt::Display::fmt(&self.0, f)
+            }
+        }
+        impl core::fmt::Debug for $ident {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                core::fmt::Debug::fmt(&self.0, f)
             }
         }
     };
@@ -239,7 +269,7 @@ macro_rules! define_b_types {
     { $($bit_len: literal),+ $(,)? } => {
         $(
             paste!{
-                define_b_type! { $bit_len, [<B $bit_len>] }
+                define_b_type! { $bit_len, [<B $bit_len>], <BitLength<$bit_len> as AssociatedStorage>::Storage }
             }
         )+
     };
