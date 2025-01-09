@@ -373,6 +373,13 @@ pub const fn extract_bits(value: u64, offset: usize, len: usize) -> u64 {
     (value >> offset) & mask
 }
 
+/// extracts some bits (mask only, no shift) from a value
+#[inline(always)]
+pub const fn extract_bits_noshift(value: u64, offset: usize, len: usize) -> u64 {
+    let mask = extract_bits_mask(len);
+    let shifted_mask = mask << offset;
+    value & shifted_mask
+}
 /// returns a new value with the specified bit range modified to the new value
 #[inline(always)]
 pub const fn modify_bits(value: u64, offset: usize, len: usize, new_value: u64) -> u64 {

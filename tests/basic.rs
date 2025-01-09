@@ -100,3 +100,14 @@ fn zeroed() {
     let zeroed = BitPieceComplex::zeroes();
     assert_eq!(zeroed.storage, 0);
 }
+
+#[test]
+fn bit_extraction_noshift() {
+    assert_eq!(BitPieceA::from_bits(0b001).x_noshift(), 0b001);
+    assert_eq!(BitPieceA::from_bits(0b111).x_noshift(), 0b001);
+    assert_eq!(BitPieceA::from_bits(0b000).x_noshift(), 0b000);
+    assert_eq!(BitPieceA::from_bits(0b110).x_noshift(), 0b000);
+
+    assert_eq!(BitPieceA::from_bits(0b110).y_noshift(), 0b110,);
+    assert_eq!(BitPieceA::from_bits(0b101).y_noshift(), 0b100,);
+}

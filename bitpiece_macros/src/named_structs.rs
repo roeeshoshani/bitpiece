@@ -45,6 +45,7 @@ pub fn bitpiece_named_struct(
     let bitpiece_mut_impl = bitpiece_mut_gen_impl(&ident_mut, &input.ident);
 
     let field_access_fns = gen_field_access_fns(fields, &storage_type);
+    let field_access_noshift_fns = gen_field_access_noshift_fns(fields, &storage_type);
     let field_set_fns = gen_field_set_fns(fields, &storage_type);
     let field_mut_fns = gen_field_mut_fns(fields, &storage_type);
 
@@ -70,6 +71,7 @@ pub fn bitpiece_named_struct(
 
         impl #ident {
             #(#field_access_fns)*
+            #(#field_access_noshift_fns)*
             #(#field_set_fns)*
             #(#field_mut_fns)*
         }
@@ -117,6 +119,23 @@ fn fields_extracted_bits<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
         })
     })
 }
+
+/// returns an iterator over the extracted bits (mask only, no shift) of each field.
+fn fields_extracted_bits_noshift<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
+    fields: I,
+    storage_type: &'a TypeExpr,
+) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+    fields_offsets_and_lens(fields).map(|offset_and_len| {
+        let FieldOffsetAndLen { len, offset } = offset_and_len;
+        extract_bits_noshift(ExtractBitsParams {
+            value: quote! { self.storage },
+            value_type: storage_type.clone(),
+            extract_offset: offset,
+            extract_len: len,
+        })
+    })
+}
+
 /// returns an iterator over the bit offset and bit length of each field.
 fn fields_offsets_and_lens<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
     fields: I,
@@ -166,6 +185,21 @@ fn extract_bits(params: ExtractBitsParams) -> proc_macro2::TokenStream {
     quote! {
         (
             ::bitpiece::extract_bits(#value as u64, #extract_offset, #extract_len) as #value_type
+        )
+    }
+}
+
+/// extracts some bits (mask only, no shift) from a value
+fn extract_bits_noshift(params: ExtractBitsParams) -> proc_macro2::TokenStream {
+    let ExtractBitsParams {
+        value,
+        value_type,
+        extract_offset,
+        extract_len,
+    } = &params;
+    quote! {
+        (
+            ::bitpiece::extract_bits_noshift(#value as u64, #extract_offset, #extract_len) as #value_type
         )
     }
 }
@@ -235,6 +269,24 @@ fn gen_field_access_fns<'a>(
             quote! {
                 #vis fn #ident (self) -> #ty {
                     <#ty as ::bitpiece::BitPiece>::from_bits(#bits as <#ty as ::bitpiece::BitPiece>::Bits)
+                }
+            }
+        })
+}
+
+fn gen_field_access_noshift_fns<'a>(
+    fields: &'a FieldsNamed,
+    storage_type: &'a TypeExpr,
+) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+    fields_extracted_bits_noshift(fields.named.iter(), storage_type)
+        .zip(fields.named.iter())
+        .map(move |(bits, field)| {
+            let vis = &field.vis;
+            let ident = field.ident.as_ref().unwrap();
+            let ident_noshift = format_ident!("{}_noshift", ident);
+            quote! {
+                #vis fn #ident_noshift (self) -> #storage_type {
+                    #bits
                 }
             }
         })
