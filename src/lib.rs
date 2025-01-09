@@ -214,7 +214,7 @@ macro_rules! define_b_type {
             }
 
             fn from_bits(bits: Self::Bits) -> Self {
-                Self(bits)
+                Self::new(bits).unwrap()
             }
 
             fn to_bits(self) -> Self::Bits {

@@ -81,6 +81,12 @@ fn test_b_types_enforce_length() {
 }
 
 #[test]
+#[should_panic]
+fn test_b_types_enforce_length_in_from_bits() {
+    let _ = B3::from_bits(0b10000011);
+}
+
+#[test]
 fn from_to_fields() {
     let fields = BitPieceComplexFields {
         a: BitPieceAFields {
