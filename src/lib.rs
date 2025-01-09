@@ -223,7 +223,16 @@ macro_rules! define_b_type {
         }
         impl $ident {
             /// the max allowed value for this type.
-            pub const MAX: Self = Self(<$storage>::MAX);
+            pub const MAX: Self = Self(
+                if $bit_len == <$storage>::BITS {
+                    // if the bit length is equal to the amount of bits in our storage type, avoid the overflow
+                    // which will happen when shifting, and just returns the maximum value of the underlying
+                    // storage type.
+                    <$storage>::MAX
+                } else {
+                    (1 as $storage).wrapping_shl($bit_len).wrapping_sub(1)
+                }
+            );
 
             /// the bit length of this type.
             pub const BIT_LENGTH: usize = $bit_len;

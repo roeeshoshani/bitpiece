@@ -65,9 +65,19 @@ fn bit_modification() {
 }
 
 #[test]
+fn test_b_types_max_value() {
+    assert_eq!(B3::MAX.get(), 0b111);
+    assert_eq!(B13::MAX.get(), 0b1111111111111);
+    assert_eq!(B8::MAX.get(), 0b11111111);
+    assert_eq!(B16::MAX.get(), 0b1111111111111111);
+}
+
+#[test]
 fn test_b_types_enforce_length() {
+    assert!(B3::new(0b000).is_some());
     assert!(B3::new(0b111).is_some());
     assert!(B3::new(0b1000).is_none());
+    assert!(B3::new(0b10000011).is_none());
 }
 
 #[test]
