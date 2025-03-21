@@ -1,4 +1,5 @@
-use quote::{format_ident, quote};
+use convert_case::Casing;
+use quote::{format_ident, quote, ToTokens};
 use syn::{parse_quote, DeriveInput, FieldsNamed};
 
 use crate::{
@@ -24,8 +25,22 @@ pub fn bitpiece_named_struct(
         .named
         .iter()
         .map(|field| TypeExpr::from_type(&field.ty));
-    let total_bit_length: BitLenExpr = field_types.clone().map(|field_ty| field_ty.bit_len()).sum();
-    let storage_type = total_bit_length.storage_type();
+    let bit_len_calc: BitLenExpr = field_types.clone().map(|field_ty| field_ty.bit_len()).sum();
+    let bit_len_ident = proc_macro2::Ident::new(
+        &format!(
+            "{}_BIT_LEN",
+            input
+                .ident
+                .to_string()
+                .to_case(convert_case::Case::Constant)
+        ),
+        input.ident.span(),
+    );
+    let bit_len = BitLenExpr(bit_len_ident.to_token_stream());
+
+    let storage_type_calc = bit_len.storage_type();
+    let storage_type_ident = format_ident!("{}StorageTy", input.ident);
+    let storage_type = TypeExpr(storage_type_ident.to_token_stream());
 
     let fields_struct_ident = format_ident!("{}Fields", input.ident);
     let fields_struct_modified_fields = gen_fields_struct_modified_fields(fields);
@@ -33,7 +48,7 @@ pub fn bitpiece_named_struct(
     let ident_mut = format_ident!("{}Mut", input.ident);
     let bitpiece_impl = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: input.ident.clone(),
-        bit_len: total_bit_length.clone(),
+        bit_len: bit_len.clone(),
         storage_type: storage_type.clone(),
         serialization_code: quote! { self.storage },
         deserialization_code: quote! { Self { storage: bits } },
@@ -54,11 +69,14 @@ pub fn bitpiece_named_struct(
     let mut_struct_field_mut_fns = gen_mut_struct_field_mut_fns(fields);
 
     let explicit_bit_len_assertion =
-        gen_explicit_bit_length_assertion(explicit_bit_length, &total_bit_length);
+        gen_explicit_bit_length_assertion(explicit_bit_length, &bit_len);
 
     let vis = &input.vis;
     let attrs = &input.attrs;
     quote! {
+        #vis const #bit_len_ident: usize = #bit_len_calc;
+        #vis type #storage_type_ident = #storage_type_calc;
+
         #explicit_bit_len_assertion
 
         #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
@@ -86,6 +104,17 @@ pub fn bitpiece_named_struct(
             #(#mut_struct_field_access_fns)*
             #(#mut_struct_field_set_fns)*
             #(#mut_struct_field_mut_fns)*
+        }
+
+        impl ::core::convert::From<#fields_struct_ident> for #ident {
+            fn from(fields: #fields_struct_ident) -> Self {
+                <Self as ::bitpiece::BitPiece>::from_fields(fields)
+            }
+        }
+        impl ::core::convert::From<#ident> for #fields_struct_ident {
+            fn from(value: #ident) -> Self {
+                <#ident as ::bitpiece::BitPiece>::to_fields(value)
+            }
         }
 
         #(#attrs)*

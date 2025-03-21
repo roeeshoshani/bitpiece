@@ -1,4 +1,5 @@
-use quote::{format_ident, quote};
+use convert_case::Casing;
+use quote::{format_ident, quote, ToTokens};
 use syn::{DataEnum, DeriveInput, Fields};
 
 use crate::{
@@ -108,8 +109,23 @@ pub fn bitpiece_enum(
     {
         return not_supported_err("enum variants with data");
     }
-    let bit_len = BitLenExpr(enum_bit_len(&input.ident, data_enum));
-    let storage_type = bit_len.storage_type();
+
+    let bit_len_calc = BitLenExpr(enum_bit_len(&input.ident, data_enum));
+    let bit_len_ident = proc_macro2::Ident::new(
+        &format!(
+            "{}_BIT_LEN",
+            input
+                .ident
+                .to_string()
+                .to_case(convert_case::Case::Constant)
+        ),
+        input.ident.span(),
+    );
+    let bit_len = BitLenExpr(bit_len_ident.to_token_stream());
+
+    let storage_type_calc = bit_len.storage_type();
+    let storage_type_ident = format_ident!("{}StorageTy", input.ident);
+    let storage_type = TypeExpr(storage_type_ident.to_token_stream());
 
     let explicit_bit_len_assertion =
         gen_explicit_bit_length_assertion(explicit_bit_length, &bit_len);
@@ -131,9 +147,16 @@ pub fn bitpiece_enum(
         bit_len,
     });
 
+    let vis = &input.vis;
+
     quote! {
+        #vis const #bit_len_ident: usize = #bit_len_calc;
+        #vis type #storage_type_ident = #storage_type_calc;
+
         #explicit_bit_len_assertion
+
         #input
+
         #implementation
     }
     .into()
