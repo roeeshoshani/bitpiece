@@ -1,6 +1,6 @@
 [package]
 name = "bitpiece_macros"
-version = "0.1.10"
+version = "0.1.11"
 edition = "2021"
 authors = ["Roee Shoshani"]
 description = "bitfields for rust"
