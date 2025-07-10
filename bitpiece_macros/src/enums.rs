@@ -85,13 +85,13 @@ fn gen_deserialization_code(
                 #const_ident => Self::#ident,
             }
         });
+    let enum_ident_str = enum_ident.to_string();
     quote! {
         {
             #(#consts)*
-            const END: #storage_type = 1 << (#bit_len);
             match bits {
                 #(#arms)*
-                END.. => todo!(),
+                _ => panic!("value {} is not a valid variant of enum type {}", bits, #enum_ident_str),
             }
         }
     }

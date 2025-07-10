@@ -127,3 +127,35 @@ fn bit_extraction_noshift() {
     assert_eq!(BitPieceA::from_bits(0b110).y_noshift(), 0b110,);
     assert_eq!(BitPieceA::from_bits(0b101).y_noshift(), 0b100,);
 }
+
+#[bitpiece]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NonExhaustiveEnum {
+    Variant0 = 0,
+    Variant77 = 77,
+    Variant120 = 120,
+    Variant194 = 194,
+}
+
+#[test]
+fn valid_variants_of_non_exhastive_enum() {
+    assert_eq!(NonExhaustiveEnum::from_bits(0), NonExhaustiveEnum::Variant0);
+    assert_eq!(
+        NonExhaustiveEnum::from_bits(77),
+        NonExhaustiveEnum::Variant77
+    );
+    assert_eq!(
+        NonExhaustiveEnum::from_bits(120),
+        NonExhaustiveEnum::Variant120
+    );
+    assert_eq!(
+        NonExhaustiveEnum::from_bits(194),
+        NonExhaustiveEnum::Variant194
+    );
+}
+
+#[should_panic]
+#[test]
+fn invalid_variant_of_non_exhastive_enum() {
+    let _ = NonExhaustiveEnum::from_bits(55);
+}
