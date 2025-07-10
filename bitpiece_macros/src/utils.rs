@@ -123,3 +123,13 @@ pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStr
         }
     }
 }
+
+pub fn gen_deserialization_code(type_ident: &syn::Ident) -> proc_macro2::TokenStream {
+    let type_ident_str = type_ident.to_string();
+    quote! {
+        match <Self as ::bitpiece::BitPiece>::try_from_bits(bits) {
+            Some(v) => v,
+            None => panic!("value {} is not a valid {}", bits, #type_ident_str),
+        }
+    }
+}

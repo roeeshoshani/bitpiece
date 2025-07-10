@@ -266,10 +266,10 @@ fn non_exhaustive_enum_container() {
     assert_eq!(NonExhaustiveEnumContainer2::try_from_bits(60 << 10), None);
     assert_eq!(NonExhaustiveEnumContainer2::try_from_bits(25 << 10), None);
     expect_panic(|| {
-        let _ = NonExhaustiveEnumContainer2::try_from_bits(25 << 10);
+        let _ = NonExhaustiveEnumContainer2::from_bits(25 << 10);
     });
     expect_panic(|| {
-        let _ = NonExhaustiveEnumContainer2::try_from_bits(26 << 10);
+        let _ = NonExhaustiveEnumContainer2::from_bits(26 << 10);
     });
 }
 

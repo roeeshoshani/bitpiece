@@ -4,7 +4,9 @@ use syn::{DataEnum, DeriveInput, Fields};
 
 use crate::{
     newtypes::{BitLenExpr, TypeExpr},
-    utils::{bitpiece_gen_impl, not_supported_err, BitPieceGenImplParams},
+    utils::{
+        bitpiece_gen_impl, gen_deserialization_code, not_supported_err, BitPieceGenImplParams,
+    },
 };
 
 fn enum_variant_values<'a>(
@@ -92,15 +94,6 @@ fn gen_try_deserialization_code(
     }
 }
 
-fn gen_deserialization_code(enum_ident: &syn::Ident) -> proc_macro2::TokenStream {
-    let enum_ident_str = enum_ident.to_string();
-    quote! {
-        match <Self as ::bitpiece::BitPiece>::try_from_bits(bits) {
-            Some(v) => v,
-            None => panic!("value {} is not a valid variant of enum type {}", bits, #enum_ident_str),
-        }
-    }
-}
 pub fn bitpiece_enum(
     input: &DeriveInput,
     data_enum: &DataEnum,

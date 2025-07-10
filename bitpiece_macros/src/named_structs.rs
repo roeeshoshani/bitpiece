@@ -5,8 +5,8 @@ use syn::{parse_quote, DeriveInput, FieldsNamed};
 use crate::{
     newtypes::{BitLenExpr, BitOffsetExpr, TypeExpr},
     utils::{
-        bitpiece_gen_impl, gen_explicit_bit_length_assertion, not_supported_err,
-        BitPieceGenImplParams,
+        bitpiece_gen_impl, gen_deserialization_code, gen_explicit_bit_length_assertion,
+        not_supported_err, BitPieceGenImplParams,
     },
 };
 
@@ -51,8 +51,8 @@ pub fn bitpiece_named_struct(
         bit_len: bit_len.clone(),
         storage_type: storage_type.clone(),
         serialization_code: quote! { self.storage },
-        deserialization_code: quote! { Self { storage: bits } },
-        try_deserialization_code: None,
+        deserialization_code: gen_deserialization_code(&input.ident),
+        try_deserialization_code: Some(gen_try_deserialization_code(fields, &storage_type)),
         mut_type: quote! { #ident_mut<'s, S> },
         fields_type: TypeExpr(quote! { #fields_struct_ident }),
         to_fields_code: gen_to_fields(fields, &fields_struct_ident),
@@ -138,11 +138,12 @@ fn gen_fields_struct_modified_fields<'a>(fields: &'a FieldsNamed) -> FieldsNamed
 fn fields_extracted_bits<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
     fields: I,
     storage_type: &'a TypeExpr,
+    storage_bits_expr: proc_macro2::TokenStream,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
-    fields_offsets_and_lens(fields).map(|offset_and_len| {
+    fields_offsets_and_lens(fields).map(move |offset_and_len| {
         let FieldOffsetAndLen { len, offset } = offset_and_len;
         extract_bits(ExtractBitsParams {
-            value: quote! { self.storage },
+            value: storage_bits_expr.clone(),
             value_type: storage_type.clone(),
             extract_offset: offset,
             extract_len: len,
@@ -269,6 +270,26 @@ fn gen_from_fields<'a>(fields: &'a FieldsNamed, input: &DeriveInput) -> proc_mac
     }
 }
 
+fn gen_try_deserialization_code(
+    fields: &FieldsNamed,
+    storage_type: &TypeExpr,
+) -> proc_macro2::TokenStream {
+    // before constructing the type, make sure that the values of all fields are valid
+    let per_field_call = fields_extracted_bits(fields.named.iter(), storage_type, quote! { bits })
+        .zip(fields.named.iter())
+        .map(|(bits, field)| {
+            let ty = &field.ty;
+            quote! {
+                let _ = <#ty as ::bitpiece::BitPiece>::try_from_bits(#bits as <#ty as ::bitpiece::BitPiece>::Bits)?;
+            }
+        });
+    quote! {
+        let result = Self { storage: bits };
+        #(#per_field_call)*
+        Some(result)
+    }
+}
+
 fn gen_to_fields<'a>(
     fields: &'a FieldsNamed,
     fields_struct_ident: &syn::Ident,
@@ -290,7 +311,7 @@ fn gen_field_access_fns<'a>(
     fields: &'a FieldsNamed,
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
-    fields_extracted_bits(fields.named.iter(), storage_type)
+    fields_extracted_bits(fields.named.iter(), storage_type, quote!{ self.storage })
         .zip(fields.named.iter())
         .map(|(bits, field)| {
             let vis = &field.vis;
