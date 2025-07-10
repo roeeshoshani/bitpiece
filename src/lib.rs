@@ -101,6 +101,11 @@ pub trait BitPiece: Clone + Copy {
     /// constructs this type from the given bits.
     fn from_bits(bits: Self::Bits) -> Self;
 
+    /// tries to construct this type from the given bits, if the given bits represent a valid value of this type.
+    fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+        Some(Self::from_bits(bits))
+    }
+
     /// returns the underlying bits of this type.
     fn to_bits(self) -> Self::Bits;
 }

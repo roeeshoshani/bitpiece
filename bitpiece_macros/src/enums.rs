@@ -60,7 +60,6 @@ fn enum_bit_len(enum_ident: &syn::Ident, data_enum: &DataEnum) -> proc_macro2::T
 fn gen_deserialization_code(
     enum_ident: &syn::Ident,
     data_enum: &DataEnum,
-    bit_len: &BitLenExpr,
     storage_type: &TypeExpr,
 ) -> proc_macro2::TokenStream {
     let const_idents = (0..data_enum.variants.len()).map(|i| format_ident!("V{}", i));
@@ -134,12 +133,7 @@ pub fn bitpiece_enum(
         type_ident: input.ident.clone(),
         mut_type: quote! { ::bitpiece::GenericBitPieceMut<'s, S, Self> },
         serialization_code: quote! { self as #storage_type },
-        deserialization_code: gen_deserialization_code(
-            &input.ident,
-            data_enum,
-            &bit_len,
-            &storage_type,
-        ),
+        deserialization_code: gen_deserialization_code(&input.ident, data_enum, &storage_type),
         fields_type: TypeExpr(quote! { Self }),
         to_fields_code: quote! { self },
         from_fields_code: quote! { fields },
