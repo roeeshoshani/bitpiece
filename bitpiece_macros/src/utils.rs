@@ -70,6 +70,10 @@ pub struct BitPieceGenImplParams {
     /// code for deserializing this type.
     /// this will be used as the body of the `from_bits` method.
     pub deserialization_code: proc_macro2::TokenStream,
+
+    /// code for trying to deserialize this type.
+    /// this will be used as the body of the `try_from_bits` method.
+    pub try_deserialization_code: Option<proc_macro2::TokenStream>,
 }
 
 /// generates the final implementation of the `BitPiece` trait given the implementation details.
@@ -84,7 +88,18 @@ pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStr
         from_fields_code,
         serialization_code,
         deserialization_code,
+        try_deserialization_code,
     } = params;
+    let try_from_bits_fn = match try_deserialization_code {
+        Some(try_deserialization_code) => {
+            quote! {
+                fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+                    #try_deserialization_code
+                }
+            }
+        }
+        None => quote! {},
+    };
     quote! {
         #[automatically_derived]
         impl ::bitpiece::BitPiece for #type_ident {
@@ -101,6 +116,7 @@ pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStr
             fn from_bits(bits: Self::Bits) -> Self {
                 #deserialization_code
             }
+            #try_from_bits_fn
             fn to_bits(self) -> Self::Bits {
                 #serialization_code
             }

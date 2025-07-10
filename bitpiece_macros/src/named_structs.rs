@@ -52,6 +52,7 @@ pub fn bitpiece_named_struct(
         storage_type: storage_type.clone(),
         serialization_code: quote! { self.storage },
         deserialization_code: quote! { Self { storage: bits } },
+        try_deserialization_code: None,
         mut_type: quote! { #ident_mut<'s, S> },
         fields_type: TypeExpr(quote! { #fields_struct_ident }),
         to_fields_code: gen_to_fields(fields, &fields_struct_ident),

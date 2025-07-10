@@ -57,7 +57,7 @@ fn enum_bit_len(enum_ident: &syn::Ident, data_enum: &DataEnum) -> proc_macro2::T
     }
 }
 
-fn gen_deserialization_code(
+fn gen_try_deserialization_code(
     enum_ident: &syn::Ident,
     data_enum: &DataEnum,
     storage_type: &TypeExpr,
@@ -81,21 +81,29 @@ fn gen_deserialization_code(
         .map(|(variant, const_ident)| {
             let ident = &variant.ident;
             quote! {
-                #const_ident => Self::#ident,
+                #const_ident => Some(Self::#ident),
             }
         });
-    let enum_ident_str = enum_ident.to_string();
     quote! {
         {
             #(#consts)*
             match bits {
                 #(#arms)*
-                _ => panic!("value {} is not a valid variant of enum type {}", bits, #enum_ident_str),
+                _ => None,
             }
         }
     }
 }
 
+fn gen_deserialization_code(enum_ident: &syn::Ident) -> proc_macro2::TokenStream {
+    let enum_ident_str = enum_ident.to_string();
+    quote! {
+        match <Self as ::bitpiece::BitPiece>::try_from_bits(bits) {
+            Some(v) => v,
+            None => panic!("value {} is not a valid variant of enum type {}", bits, #enum_ident_str),
+        }
+    }
+}
 pub fn bitpiece_enum(
     input: &DeriveInput,
     data_enum: &DataEnum,
@@ -133,7 +141,12 @@ pub fn bitpiece_enum(
         type_ident: input.ident.clone(),
         mut_type: quote! { ::bitpiece::GenericBitPieceMut<'s, S, Self> },
         serialization_code: quote! { self as #storage_type },
-        deserialization_code: gen_deserialization_code(&input.ident, data_enum, &storage_type),
+        try_deserialization_code: Some(gen_try_deserialization_code(
+            &input.ident,
+            data_enum,
+            &storage_type,
+        )),
+        deserialization_code: gen_deserialization_code(&input.ident),
         fields_type: TypeExpr(quote! { Self }),
         to_fields_code: quote! { self },
         from_fields_code: quote! { fields },
