@@ -1,4 +1,4 @@
-# bitpiece 🧩
+# bitpiece
 
 **A Rust crate for effortlessly defining and manipulating bitfields with procedural macros.**
 
@@ -195,3 +195,5 @@ For a struct like `MyPiece { field_a: bool, field_b: B3 }`, the macro generates:
   - `my_piece.set_field_b(B3)`: Setter for `field_b`.
   - `my_piece.field_a_mut() -> BitPieceMut`: Advanced usage for mutable access, especially for nested pieces.
   - `my_piece.field_b_mut() -> BitPieceMut`: Same as above, but for field_b
+
+License: MIT
