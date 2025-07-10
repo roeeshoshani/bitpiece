@@ -134,7 +134,6 @@ enum NonExhaustiveEnum {
     Variant0 = 0,
     Variant77 = 77,
     Variant120 = 120,
-    Variant194 = 194,
 }
 
 #[test]
@@ -148,10 +147,6 @@ fn valid_variants_of_non_exhastive_enum() {
         NonExhaustiveEnum::from_bits(120),
         NonExhaustiveEnum::Variant120
     );
-    assert_eq!(
-        NonExhaustiveEnum::from_bits(194),
-        NonExhaustiveEnum::Variant194
-    );
 }
 
 #[should_panic]
@@ -161,6 +156,38 @@ fn invalid_variant_of_non_exhastive_enum() {
 }
 
 #[test]
-fn try_invalid_variant_of_non_exhastive_enum() {
+fn non_exhastive_enum_try_from_bits() {
+    assert_eq!(
+        NonExhaustiveEnum::try_from_bits(120),
+        Some(NonExhaustiveEnum::Variant120)
+    );
     assert_eq!(NonExhaustiveEnum::try_from_bits(93), None);
+}
+
+#[test]
+fn exhastive_enum_try_from_bits() {
+    assert_eq!(BitPieceEnum::try_from_bits(0), Some(BitPieceEnum::Variant0));
+    assert_eq!(BitPieceEnum::try_from_bits(1), Some(BitPieceEnum::Variant1));
+    assert_eq!(BitPieceEnum::try_from_bits(2), Some(BitPieceEnum::Variant2));
+    assert_eq!(BitPieceEnum::try_from_bits(3), Some(BitPieceEnum::Variant3));
+}
+
+#[test]
+fn enum_try_from_bits_out_of_range() {
+    assert_eq!(BitPieceEnum::try_from_bits(4), None);
+    assert_eq!(BitPieceEnum::try_from_bits(255), None);
+
+    assert_eq!(NonExhaustiveEnum::try_from_bits(194), None);
+    assert_eq!(BitPieceEnum::try_from_bits(255), None);
+}
+
+#[test]
+fn b_types_try_from_bits() {
+    assert_eq!(B1::try_from_bits(0), Some(B1::new(0).unwrap()));
+    assert_eq!(B1::try_from_bits(1), Some(B1::new(1).unwrap()));
+    assert_eq!(B1::try_from_bits(2), None);
+
+    assert_eq!(B6::try_from_bits(17), Some(B6::new(17).unwrap()));
+    assert_eq!(B6::try_from_bits(2), Some(B6::new(2).unwrap()));
+    assert_eq!(B6::try_from_bits(241), None);
 }
