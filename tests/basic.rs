@@ -191,3 +191,23 @@ fn b_types_try_from_bits() {
     assert_eq!(B6::try_from_bits(2), Some(B6::new(2).unwrap()));
     assert_eq!(B6::try_from_bits(241), None);
 }
+
+#[bitpiece(16)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NonExhaustiveEnumExplicitBitLen {
+    Variant0 = 0,
+    Variant77 = 77,
+    Variant120 = 120,
+}
+
+#[test]
+fn non_exhaustive_enum_explicit_bit_len() {
+    // make sure that the regular stuff works as expected
+    assert_eq!(
+        NonExhaustiveEnumExplicitBitLen::from_bits(77),
+        NonExhaustiveEnumExplicitBitLen::Variant77
+    );
+
+    // make sure that we can pass 16 bit values
+    assert_eq!(NonExhaustiveEnumExplicitBitLen::try_from_bits(1500), None);
+}

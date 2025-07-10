@@ -4,10 +4,7 @@ use syn::{DataEnum, DeriveInput, Fields};
 
 use crate::{
     newtypes::{BitLenExpr, TypeExpr},
-    utils::{
-        bitpiece_gen_impl, gen_explicit_bit_length_assertion, not_supported_err,
-        BitPieceGenImplParams,
-    },
+    utils::{bitpiece_gen_impl, not_supported_err, BitPieceGenImplParams},
 };
 
 fn enum_variant_values<'a>(
@@ -117,7 +114,10 @@ pub fn bitpiece_enum(
         return not_supported_err("enum variants with data");
     }
 
-    let bit_len_calc = BitLenExpr(enum_bit_len(&input.ident, data_enum));
+    let bit_len_calc = match explicit_bit_length {
+        Some(explicit_bit_len) => BitLenExpr(quote! {#explicit_bit_len}),
+        None => BitLenExpr(enum_bit_len(&input.ident, data_enum)),
+    };
     let bit_len_ident = proc_macro2::Ident::new(
         &format!(
             "{}_BIT_LEN",
@@ -133,9 +133,6 @@ pub fn bitpiece_enum(
     let storage_type_calc = bit_len.storage_type();
     let storage_type_ident = format_ident!("{}StorageTy", input.ident);
     let storage_type = TypeExpr(storage_type_ident.to_token_stream());
-
-    let explicit_bit_len_assertion =
-        gen_explicit_bit_length_assertion(explicit_bit_length, &bit_len);
 
     let implementation = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: input.ident.clone(),
@@ -159,8 +156,6 @@ pub fn bitpiece_enum(
     quote! {
         #vis const #bit_len_ident: usize = #bit_len_calc;
         #vis type #storage_type_ident = #storage_type_calc;
-
-        #explicit_bit_len_assertion
 
         #input
 
