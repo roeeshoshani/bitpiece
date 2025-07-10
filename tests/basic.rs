@@ -159,3 +159,8 @@ fn valid_variants_of_non_exhastive_enum() {
 fn invalid_variant_of_non_exhastive_enum() {
     let _ = NonExhaustiveEnum::from_bits(55);
 }
+
+#[test]
+fn try_invalid_variant_of_non_exhastive_enum() {
+    assert_eq!(NonExhaustiveEnum::try_from_bits(93), None);
+}
