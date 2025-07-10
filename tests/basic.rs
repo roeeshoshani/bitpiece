@@ -81,9 +81,13 @@ fn test_b_types_enforce_length() {
 }
 
 #[test]
-#[should_panic]
 fn test_b_types_enforce_length_in_from_bits() {
-    let _ = B3::from_bits(0b10000011);
+    expect_panic(|| {
+        let _ = B3::from_bits(0b1000);
+    });
+    expect_panic(|| {
+        let _ = B3::from_bits(0b10001011);
+    });
 }
 
 #[test]
@@ -149,10 +153,17 @@ fn valid_variants_of_non_exhastive_enum() {
     );
 }
 
-#[should_panic]
 #[test]
 fn invalid_variant_of_non_exhastive_enum() {
-    let _ = NonExhaustiveEnum::from_bits(55);
+    expect_panic(|| {
+        let _ = NonExhaustiveEnum::from_bits(55);
+    });
+    expect_panic(|| {
+        let _ = NonExhaustiveEnum::from_bits(127);
+    });
+    expect_panic(|| {
+        let _ = NonExhaustiveEnum::from_bits(20);
+    });
 }
 
 #[test]
@@ -210,4 +221,59 @@ fn non_exhaustive_enum_explicit_bit_len() {
 
     // make sure that we can pass 16 bit values
     assert_eq!(NonExhaustiveEnumExplicitBitLen::try_from_bits(1500), None);
+}
+
+#[bitpiece(12)]
+struct NonExhaustiveEnumContainer1 {
+    a: B2,
+    b: NonExhaustiveEnum,
+    c: B3,
+}
+
+#[bitpiece(27)]
+struct NonExhaustiveEnumContainer2 {
+    a: u8,
+    b: NonExhaustiveEnumContainer1,
+    c: B7,
+}
+
+#[test]
+fn non_exhaustive_enum_container() {
+    assert_eq!(
+        NonExhaustiveEnumContainer2::from_bits(0).b().b(),
+        NonExhaustiveEnum::Variant0
+    );
+    assert_eq!(
+        NonExhaustiveEnumContainer2::try_from_bits(0)
+            .unwrap()
+            .b()
+            .b(),
+        NonExhaustiveEnum::Variant0
+    );
+
+    assert_eq!(
+        NonExhaustiveEnumContainer2::from_bits(77 << 10).b().b(),
+        NonExhaustiveEnum::Variant77
+    );
+    assert_eq!(
+        NonExhaustiveEnumContainer2::try_from_bits(77 << 10)
+            .unwrap()
+            .b()
+            .b(),
+        NonExhaustiveEnum::Variant77
+    );
+
+    assert_eq!(NonExhaustiveEnumContainer2::try_from_bits(60 << 10), None);
+    assert_eq!(NonExhaustiveEnumContainer2::try_from_bits(25 << 10), None);
+    expect_panic(|| {
+        let _ = NonExhaustiveEnumContainer2::try_from_bits(25 << 10);
+    });
+    expect_panic(|| {
+        let _ = NonExhaustiveEnumContainer2::try_from_bits(26 << 10);
+    });
+}
+
+pub fn expect_panic<F: FnOnce() + std::panic::UnwindSafe>(f: F) {
+    let result = std::panic::catch_unwind(f);
+    result.expect_err("expected the code to panic");
 }
