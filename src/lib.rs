@@ -222,6 +222,10 @@ macro_rules! define_b_type {
                 Self::new(bits).unwrap()
             }
 
+            fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+                Self::new(bits)
+            }
+
             fn to_bits(self) -> Self::Bits {
                 self.0
             }
