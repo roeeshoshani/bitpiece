@@ -6,11 +6,11 @@
 //!
 //!   - **Declarative & Simple**: Define complex bitfield layouts using simple Rust structs and enums.
 //!   - **Type-Safe API**: The macro generates getters and setters for each field, so you work with `bool`, `u8`, `enum` types, etc., not raw bit shifts and masks.
-//!   - **Automatic Bit-Length Calculation**: The macro automatically calculates the total number of bits required for your type.
+//!   - **Flexible**: Supports defining types which have exotic bit lengths, for example a 6-bit struct made of two 3-bit fields.
 //!   - **Nestable**: Compose complex bitfields by nesting `bitpiece` types within each other.
-//!   - **Arbitrary-Width Integers**: Use the built-in `B1`-`B64` types (e.g., `B3`, `B7`, `B12`) for fields with non-standard bit lengths.
+//!   - **Arbitrary-Width Integers**: Use the built-in `B1`-`B64` types (e.g., `B3`, `B7`, `B12`) for unsigned integers with non-standard bit lengths, or the `SB1`-`SB64` types for signed integers.
+//!   - **Enums**: Supports using enums as bitfields, with automatic validation of input for non-exhaustive enums.
 //!   - **Compile-Time Validation**: Optionally specify an expected bit length on your structs (e.g., `#[bitpiece(32)]`) to get a compile-time error if it doesn't match the sum of its fields.
-//!   - **Flexible Enums**: Supports both exhaustive and non-exhaustive enums. You can also specify a larger bit-width for an enum than its variants require.
 //!   - **Safe & Unsafe APIs**: Provides both panicking (`from_bits`) and fallible (`try_from_bits`) APIs for creating bitpieces from raw integer values.
 //!   - `#![no_std]` compatible.
 //!

@@ -63,7 +63,7 @@ fn main() {
 
     // Use the generated setter methods to modify the header.
     header.set_priority(Priority::Critical);
-    header.set_payload_len(B5::new(31).unwrap()); // Set to max value (2^5 - 1)
+    header.set_payload_len(B5::new(31)); // Set to max value (2^5 - 1)
 
     assert_eq!(header.priority(), Priority::Critical);
     assert_eq!(header.payload_len().get(), 31);
@@ -76,7 +76,7 @@ fn main() {
     let from_fields = PacketHeader::from_fields(PacketHeaderFields {
         is_fragment: false,
         priority: Priority::Low,
-        payload_len: B5::new(10).unwrap(),
+        payload_len: B5::new(10),
     });
 
     assert_eq!(from_fields.to_bits(), 0b1010000);
@@ -116,7 +116,7 @@ fn main() {
     assert_eq!(info.to_bits(), 0b00000000_1010);
 
     // Set a field in a nested bitpiece
-    info.part1_mut().set_b(B3::new(0b110).unwrap());
+    info.part1_mut().set_b(B3::new(0b110));
 
     assert_eq!(info.part1().b().get(), 0b110);
     assert_eq!(info.to_bits(), 0b00000000_1100);
