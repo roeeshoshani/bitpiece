@@ -273,6 +273,111 @@ fn non_exhaustive_enum_container() {
     });
 }
 
+#[bitpiece(12)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct StructWithSigned {
+    a: B3,
+    b: i8,
+    c: bool,
+}
+
+#[bitpiece(51)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct StructWithSigned2 {
+    a: i16,
+    b: bool,
+    c: i32,
+    d: B2,
+}
+
+#[test]
+fn signed_i8_extraction() {
+    // Test with a negative i8 value.
+    // Bit layout (LSB to MSB): [a: B3 (3), b: i8 (8), c: bool (1)]
+    // a = 0b101 (5)
+    // b = 0b11111111 (-1 in two's complement for i8)
+    // c = true (1)
+    let raw_val1 = 0b1_11111111_101;
+    let value1 = StructWithSigned::from_bits(raw_val1);
+    assert_eq!(value1.a(), B3::new(5).unwrap());
+    assert_eq!(value1.b(), -1i8);
+    assert_eq!(value1.c(), true);
+
+    // Test with a positive i8 value.
+    // a = 0b010 (2)
+    // b = 0b00000111 (7 in two's complement for i8)
+    // c = false (0)
+    let raw_val2 = 0b0_00000111_010;
+    let value2 = StructWithSigned::from_bits(raw_val2);
+    assert_eq!(value2.a(), B3::new(2).unwrap());
+    assert_eq!(value2.b(), 7i8);
+    assert_eq!(value2.c(), false);
+
+    // Test with i8 minimum value.
+    // a = 0b111 (7)
+    // b = 0b10000000 (-128 in two's complement for i8)
+    // c = true (1)
+    let raw_val3 = 0b1_10000000_111;
+    let value3 = StructWithSigned::from_bits(raw_val3);
+    assert_eq!(value3.a(), B3::new(7).unwrap());
+    assert_eq!(value3.b(), -128i8);
+    assert_eq!(value3.c(), true);
+}
+
+#[test]
+fn signed_i8_modification() {
+    let mut value = StructWithSigned::zeroes();
+    assert_eq!(value.storage, 0);
+    assert_eq!(value.a(), B3::new(0).unwrap());
+    assert_eq!(value.b(), 0i8);
+    assert_eq!(value.c(), false);
+
+    // Set a negative value
+    value.set_b(-1);
+    assert_eq!(value.b(), -1i8);
+    assert_eq!(value.c(), false);
+    assert_eq!(value.a(), B3::new(0).unwrap());
+    // Storage should be the i8 value (-1, which is 0xFF) shifted by 3 (for field `a`)
+    assert_eq!(value.storage, (0b11111111u16) << 3);
+
+    // Set other fields
+    value.set_a(B3::new(0b101).unwrap());
+    value.set_c(true);
+    assert_eq!(value.b(), -1i8);
+    assert_eq!(value.a(), B3::new(5).unwrap());
+    assert_eq!(value.c(), true);
+    assert_eq!(value.storage, 0b1_11111111_101);
+
+    // Change the signed value back to positive
+    value.set_b(42);
+    assert_eq!(value.b(), 42i8);
+    assert_eq!(value.a(), B3::new(5).unwrap());
+    assert_eq!(value.c(), true);
+    assert_eq!(value.storage, 0b1_00101010_101);
+}
+
+#[test]
+fn signed_from_to_fields() {
+    // Bit layout (LSB to MSB): [a: i16 (16), b: bool (1), c: i32 (32), d: B2 (2)]
+    let fields = StructWithSigned2Fields {
+        a: -20000, // i16
+        b: true,
+        c: 1_000_000_000, // i32
+        d: B2::new(3).unwrap(),
+    };
+    let value = StructWithSigned2::from_fields(fields);
+
+    // Check that the values were stored correctly
+    assert_eq!(value.a(), -20000i16);
+    assert_eq!(value.b(), true);
+    assert_eq!(value.c(), 1_000_000_000i32);
+    assert_eq!(value.d(), B2::new(3).unwrap());
+
+    // Check that converting back yields the same fields
+    let converted_fields = value.to_fields();
+    assert_eq!(fields, converted_fields);
+}
+
 pub fn expect_panic<F: FnOnce() + std::panic::UnwindSafe>(f: F) {
     let result = std::panic::catch_unwind(f);
     result.expect_err("expected the code to panic");
