@@ -141,12 +141,13 @@ fn fields_extracted_bits<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
     storage_bits_expr: proc_macro2::TokenStream,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields_offsets_and_lens(fields).map(move |offset_and_len| {
-        let FieldOffsetAndLen { len, offset } = offset_and_len;
+        let FieldOffsetAndLen { len, offset, signed } = offset_and_len;
         extract_bits(ExtractBitsParams {
             value: storage_bits_expr.clone(),
             value_type: storage_type.clone(),
             extract_offset: offset,
             extract_len: len,
+            signed
         })
     })
 }
@@ -157,12 +158,13 @@ fn fields_extracted_bits_noshift<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
     storage_type: &'a TypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields_offsets_and_lens(fields).map(|offset_and_len| {
-        let FieldOffsetAndLen { len, offset } = offset_and_len;
+        let FieldOffsetAndLen { len, offset, signed } = offset_and_len;
         extract_bits_noshift(ExtractBitsParams {
             value: quote! { self.storage },
             value_type: storage_type.clone(),
             extract_offset: offset,
             extract_len: len,
+            signed
         })
     })
 }
@@ -173,6 +175,7 @@ fn fields_offsets_and_lens<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
 ) -> impl Iterator<Item = FieldOffsetAndLen> + 'a {
     fields.scan(BitLenExpr::zero(), |prev_fields_bit_len, cur_field| {
         let cur_field_bit_len = TypeExpr::from_type(&cur_field.ty).bit_len();
+        let signed = TypeExpr::from_type(&cur_field.ty).signed();
         let new_bit_len = &*prev_fields_bit_len + &cur_field_bit_len;
 
         // the offset of this field is the len of all previous fields, and update the prev len to the new len.
@@ -181,6 +184,7 @@ fn fields_offsets_and_lens<'a, I: Iterator<Item = &'a syn::Field> + 'a>(
         Some(FieldOffsetAndLen {
             len: cur_field_bit_len,
             offset: BitOffsetExpr(offset.0),
+            signed,
         })
     })
 }
@@ -195,6 +199,8 @@ struct ExtractBitsParams {
     extract_offset: BitOffsetExpr,
     /// the amount of bits to extract
     extract_len: BitLenExpr,
+    /// Signed-ness of field
+    signed: bool,
 }
 
 /// parameters for modifying some range of bits of a value
@@ -212,12 +218,14 @@ fn extract_bits(params: ExtractBitsParams) -> proc_macro2::TokenStream {
         value_type,
         extract_offset,
         extract_len,
+        signed,
     } = &params;
-    quote! {
-        (
-            ::bitpiece::extract_bits(#value as u64, #extract_offset, #extract_len) as #value_type
-        )
-    }
+        quote! {
+            (
+                ::bitpiece::extract_bits::<#signed>(#value as u64, #extract_offset, #extract_len) as #value_type
+                // ::bitpiece::extract_bits(#value as u64, #extract_offset, #extract_len, #signed) as #value_type
+            )
+        }
 }
 
 /// extracts some bits (mask only, no shift) from a value
@@ -227,6 +235,7 @@ fn extract_bits_noshift(params: ExtractBitsParams) -> proc_macro2::TokenStream {
         value_type,
         extract_offset,
         extract_len,
+        ..
     } = &params;
     quote! {
         (
@@ -244,6 +253,7 @@ fn modify_bits(params: ModifyBitsParams) -> proc_macro2::TokenStream {
                 value_type,
                 extract_offset,
                 extract_len,
+                ..
             },
         new_value,
     } = params;
@@ -349,7 +359,7 @@ fn gen_mut_struct_field_access_fns<'a>(
     fields_offsets_and_lens(fields.named.iter())
         .zip(fields.named.iter())
         .map(|(offset_and_len, field)| {
-            let FieldOffsetAndLen { len, offset } = offset_and_len;
+            let FieldOffsetAndLen { len, offset, .. } = offset_and_len;
             let vis = &field.vis;
             let ident = &field.ident;
             let ty = &field.ty;
@@ -369,7 +379,7 @@ fn gen_mut_struct_field_set_fns<'a>(
     fields_offsets_and_lens(fields.named.iter())
         .zip(fields.named.iter())
         .map(|(offset_and_len, field)| {
-            let FieldOffsetAndLen { len, offset } = offset_and_len;
+            let FieldOffsetAndLen { len, offset, .. } = offset_and_len;
             let vis = &field.vis;
             let ident = field.ident.as_ref().unwrap();
             let ty = &field.ty;
@@ -414,7 +424,7 @@ fn gen_field_set_fns<'a>(
     fields_offsets_and_lens(fields.named.iter())
         .zip(fields.named.iter())
         .map(|(offset_and_len, field)| {
-            let FieldOffsetAndLen { len, offset } = offset_and_len;
+            let FieldOffsetAndLen { len, offset, signed } = offset_and_len;
             let vis = &field.vis;
             let ident = field.ident.as_ref().unwrap();
             let ty = &field.ty;
@@ -425,6 +435,7 @@ fn gen_field_set_fns<'a>(
                     value_type: storage_type.clone(),
                     extract_offset: offset,
                     extract_len: len,
+                    signed,
                 },
                 new_value: quote! { <#ty as ::bitpiece::BitPiece>::to_bits(new_value) },
             });
@@ -465,6 +476,7 @@ fn gen_field_mut_fns<'a>(
 struct FieldOffsetAndLen {
     len: BitLenExpr,
     offset: BitOffsetExpr,
+    signed: bool,
 }
 
 /// generates the final implementation of the `BitPieceMut` trait given the implementation details.

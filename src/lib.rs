@@ -203,7 +203,7 @@ use paste::paste;
 /// an empty struct used to represent a specific bit length.
 /// this is then combined with some traits ([`ExactAssociatedStorage`], [`AssociatedStorage`]) to perform operations on the
 /// specified bit length.
-pub struct BitLength<const BITS: usize>;
+pub struct BitLength<const BITS: usize, const SIGN: bool>;
 
 /// a trait implemented for [`BitLength`] types that have an exact associated storage type, for example [`u8`] or [`u16`].
 pub trait ExactAssociatedStorage {
@@ -222,8 +222,11 @@ macro_rules! impl_exact_associated_storage {
     { $($bit_length: literal),+ $(,)? } => {
         $(
             paste! {
-                impl ExactAssociatedStorage for BitLength<$bit_length> {
+                impl ExactAssociatedStorage for BitLength<$bit_length,false> {
                     type Storage = [<u $bit_length>];
+                }
+                impl ExactAssociatedStorage for BitLength<$bit_length,true> {
+                    type Storage = [<i $bit_length>];
                 }
             }
         )+
@@ -244,8 +247,11 @@ const fn exact_associated_storage_bit_length(bit_length: usize) -> usize {
 macro_rules! impl_associated_storage {
     { $($bit_length: literal),+ $(,)? } => {
         $(
-            impl AssociatedStorage for BitLength<$bit_length> {
-                type Storage = <BitLength< { exact_associated_storage_bit_length($bit_length) } > as ExactAssociatedStorage>::Storage;
+            impl AssociatedStorage for BitLength<$bit_length,false> {
+                type Storage = <BitLength< { exact_associated_storage_bit_length($bit_length) }, false > as ExactAssociatedStorage>::Storage;
+            }
+            impl AssociatedStorage for BitLength<$bit_length,true> {
+                type Storage = <BitLength< { exact_associated_storage_bit_length($bit_length) }, true > as ExactAssociatedStorage>::Storage;
             }
         )+
     };
@@ -268,6 +274,9 @@ pub trait BitPieceMut<'s, S: BitStorage + 's, P: BitPiece> {
 pub trait BitPiece: Clone + Copy {
     /// the length in bits of this type.
     const BITS: usize;
+
+    /// the fields signed-ness
+    const SIGNED: bool;
 
     /// the storage type used internally to store the bits of this bitpiece.
     type Bits: BitStorage;
@@ -311,6 +320,26 @@ macro_rules! impl_bitpiece_for_small_int_types {
             paste! {
                 impl BitPiece for [<u $bit_len>] {
                     const BITS: usize = $bit_len;
+                    const SIGNED: bool = false;
+                    type Bits = Self;
+                    type Fields = Self;
+                    type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+                    fn from_fields(fields: Self::Fields) -> Self {
+                        fields
+                    }
+                    fn to_fields(self) -> Self::Fields {
+                        self
+                    }
+                    fn from_bits(bits: Self::Bits) -> Self {
+                        bits
+                    }
+                    fn to_bits(self) -> Self::Bits {
+                        self
+                    }
+                }
+                impl BitPiece for [<i $bit_len>] {
+                    const BITS: usize = $bit_len;
+                    const SIGNED: bool = true;
                     type Bits = Self;
                     type Fields = Self;
                     type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
@@ -361,6 +390,8 @@ impl<'s, S: BitStorage + 's, P: BitPiece> BitPieceMut<'s, S, P> for GenericBitPi
 impl BitPiece for bool {
     const BITS: usize = 1;
 
+    const SIGNED: bool = false;
+
     type Bits = u8;
 
     type Fields = bool;
@@ -399,6 +430,7 @@ macro_rules! define_b_type {
         pub struct $ident($storage);
         impl BitPiece for $ident {
             const BITS: usize = $bit_len;
+            const SIGNED: bool = false;
 
             type Bits = $storage;
 
@@ -479,17 +511,134 @@ macro_rules! define_b_type {
         }
     };
 }
+
 macro_rules! define_b_types {
     { $($bit_len: literal),+ $(,)? } => {
         $(
             paste!{
-                define_b_type! { $bit_len, [<B $bit_len>], <BitLength<$bit_len> as AssociatedStorage>::Storage }
+                define_b_type! { $bit_len, [<B $bit_len>], <BitLength<$bit_len, false> as AssociatedStorage>::Storage }
             }
         )+
     };
 }
 define_b_types! {
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+    34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
+}
+
+
+macro_rules! define_sb_type {
+    { $bit_len: literal, $ident: ident, $storage: ty } => {
+        /// a type used to represent a field with a specific amount of bits.
+        #[derive(Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        pub struct $ident($storage);
+        impl BitPiece for $ident {
+            const BITS: usize = $bit_len;
+
+            const SIGNED: bool = true;
+
+            type Bits = $storage;
+
+            type Fields = Self;
+
+            type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+
+            fn from_fields(fields: Self::Fields) -> Self {
+                fields
+            }
+
+            fn to_fields(self) -> Self::Fields {
+                self
+            }
+
+            fn from_bits(bits: Self::Bits) -> Self {
+                Self::try_from_bits(bits).unwrap()
+            }
+
+            fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+                // When trying from bits allow using unsigned value
+                if bits >= (1 as $storage).wrapping_shl($bit_len-1) && $bit_len!=<$storage>::BITS {
+                    Self::new(bits.wrapping_sub((1 as $storage).wrapping_shl($bit_len)))
+                } else {
+                    Self::new(bits)
+                }
+            }
+
+            fn to_bits(self) -> Self::Bits {
+                self.0
+            }
+        }
+        impl $ident {
+            /// the max allowed value for this type.
+            pub const MAX: Self = Self(
+                if $bit_len == <$storage>::BITS {
+                    // if the bit length is equal to the amount of bits in our storage type, avoid the overflow
+                    // which will happen when shifting, and just returns the maximum value of the underlying
+                    // storage type.
+                    <$storage>::MAX
+                } else {
+                    (1 as $storage).wrapping_shl($bit_len-1).wrapping_sub(1)
+                }
+            );
+
+            /// the max allowed value for this type.
+            pub const MIN: Self = Self(
+                (-1 as $storage).wrapping_shl($bit_len-1)
+            );
+
+            /// the bit length of this type.
+            pub const BIT_LENGTH: usize = $bit_len;
+
+            /// creates a new instance of this bitfield type with the given value.
+            ///
+            /// if the value does not fit within the bit length of this type, returns `None`.
+            pub fn new(value: $storage) -> Option<Self> {
+                if value >= Self::MIN.0 && value <= Self::MAX.0 {
+                    Some(Self(value))
+                } else {
+                    None
+                }
+            }
+
+            /// creates a new instance of this bitfield type with the given value, without checking that the value
+            /// fits within the bit length of this type.
+            ///
+            /// # safety
+            /// the provided value must fit withing the bit length of this type.
+            pub unsafe fn new_unchecked(value: $storage) -> Self {
+                Self(value)
+            }
+
+            /// returns the inner value.
+            pub fn get(&self) -> $storage {
+                self.0
+            }
+        }
+        impl core::fmt::Display for $ident {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                core::fmt::Display::fmt(&self.0, f)
+            }
+        }
+        impl core::fmt::Debug for $ident {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                core::fmt::Debug::fmt(&self.0, f)
+            }
+        }
+    };
+}
+
+
+macro_rules! define_sb_types {
+    { $($bit_len: literal),+ $(,)? } => {
+        $(
+            paste!{
+                define_sb_type! { $bit_len, [<SB $bit_len>], <BitLength<$bit_len, true> as AssociatedStorage>::Storage }
+            }
+        )+
+    };
+}
+define_sb_types! {
+    2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
     34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
 }
 
@@ -530,7 +679,7 @@ macro_rules! impl_bit_storage_for_small_int_types {
         )+
     };
 }
-impl_bit_storage_for_small_int_types! { u8, u16, u32 }
+impl_bit_storage_for_small_int_types! { u8, u16, u32, i8, i16, i32, i64 }
 
 /// a convenience type for interacting with the bits of an underlying storage type, starting at a specific bit index.
 /// this is useful for implementing mutable references.
@@ -550,7 +699,7 @@ impl<'s, S: BitStorage> BitsMut<'s, S> {
     /// returns `len` bits starting at relative bit index `rel_bit_index`.
     #[inline(always)]
     pub fn get_bits(&self, rel_bit_index: usize, len: usize) -> u64 {
-        extract_bits(
+        extract_bits::<false>(
             self.storage.to_u64(),
             self.start_bit_index + rel_bit_index,
             len,
@@ -582,9 +731,14 @@ const fn extract_bits_shifted_mask(offset: usize, len: usize) -> u64 {
 
 /// extracts some bits from a value
 #[inline(always)]
-pub const fn extract_bits(value: u64, offset: usize, len: usize) -> u64 {
+pub const fn extract_bits<const SIGNED: bool>(value: u64, offset: usize, len: usize) -> u64 {
     let mask = extract_bits_mask(len);
-    (value >> offset) & mask
+    let raw_value = (value >> offset) & mask;
+    if SIGNED && len!=64 && raw_value >= (1<<(len-1)) {
+        raw_value.wrapping_sub(1<<len)
+    } else {
+        raw_value
+    }
 }
 
 /// extracts some bits (mask only, no shift) from a value

@@ -104,6 +104,7 @@ pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStr
         #[automatically_derived]
         impl ::bitpiece::BitPiece for #type_ident {
             const BITS: usize = (#bit_len);
+            const SIGNED: bool = false;
             type Bits = #storage_type;
             type Fields = #fields_type;
             type Mut<'s, S: ::bitpiece::BitStorage + 's> = #mut_type;

@@ -23,6 +23,14 @@ struct BitPieceB {
     y: B3,
 }
 
+#[bitpiece(16)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct BitPieceMixed {
+    a_u3: B3,
+    b_s5: SB5,
+    c_s8: SB8,
+}
+
 #[bitpiece(38)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct BitPieceComplex {
@@ -39,6 +47,11 @@ fn bit_extraction() {
 
     assert_eq!(BitPieceA::from_bits(0b110).y(), BitPieceEnum::Variant3);
     assert_eq!(BitPieceA::from_bits(0b101).y(), BitPieceEnum::Variant2);
+
+    assert_eq!(BitPieceMixed::from_bits(0b10000000_01111_111).a_u3().get(), 7);
+    assert_eq!(BitPieceMixed::from_bits(0b10000000_01111_111).b_s5().get(), 15);
+    assert_eq!(BitPieceMixed::from_bits(0b10000000_10000_111).b_s5().get(), -16);
+    assert_eq!(BitPieceMixed::from_bits(0b10000000_00000_111).c_s8().get(), -128);
 }
 
 #[test]
@@ -62,6 +75,17 @@ fn bit_modification() {
     assert_eq!(value.x(), false);
     assert_eq!(value.y(), BitPieceEnum::Variant3);
     assert_eq!(value.storage, 0b110);
+
+    let mut value = BitPieceMixed::zeroes();
+    value.set_b_s5(SB5::from_bits(0b01111));
+    assert_eq!(value.b_s5().get(), 15);
+    value.set_b_s5(SB5::from_bits(0b010000));
+    assert_eq!(value.b_s5().get(), -16);
+    value.set_c_s8(SB8::from_bits(5));
+    assert_eq!(value.c_s8().get(), 5);
+    value.set_c_s8(SB8::from_bits(-128));
+    assert_eq!(value.c_s8().get(), -128);
+
 }
 
 #[test]
@@ -78,6 +102,24 @@ fn test_b_types_enforce_length() {
     assert!(B3::new(0b111).is_some());
     assert!(B3::new(0b1000).is_none());
     assert!(B3::new(0b10000011).is_none());
+}
+
+#[test]
+fn test_sb_types_min_max_value() {
+    assert_eq!(SB3::MAX.get(),  3);
+    assert_eq!(SB3::MIN.get(), -4);
+    assert_eq!(SB16::MAX.get(),  32767);
+    assert_eq!(SB16::MIN.get(), -32768);
+    assert_eq!(SB64::MAX.get(),  9_223_372_036_854_775_807);
+    assert_eq!(SB64::MIN.get(), -9_223_372_036_854_775_808);
+}
+
+#[test]
+fn test_sb_types_enforce_length() {
+    assert!(SB3::new(3).is_some());
+    assert!(SB3::new(-4).is_some());
+    assert!(SB3::new(4).is_none());
+    assert!(SB3::new(-64).is_none());
 }
 
 #[test]
@@ -201,6 +243,15 @@ fn b_types_try_from_bits() {
     assert_eq!(B6::try_from_bits(17), Some(B6::new(17).unwrap()));
     assert_eq!(B6::try_from_bits(2), Some(B6::new(2).unwrap()));
     assert_eq!(B6::try_from_bits(241), None);
+}
+
+#[test]
+fn sb_types_try_from_bits() {
+    assert_eq!(SB6::try_from_bits(31), Some(SB6::new(31).unwrap()));
+    assert_eq!(SB6::try_from_bits(23), Some(SB6::new(23).unwrap()));
+    assert_eq!(SB6::try_from_bits(-32), Some(SB6::new(-32).unwrap()));
+    assert_eq!(SB6::try_from_bits(120), None);
+    assert_eq!(SB6::try_from_bits(-64), None);
 }
 
 #[bitpiece(16)]

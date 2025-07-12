@@ -1,4 +1,6 @@
 use quote::quote;
+use syn::{Type, TypePath};
+
 /// implements the `ToTokens` trait for a newtype which is just a wrapper something else which implements `ToTokens`.
 macro_rules! impl_to_tokens_for_newtype {
     {$t: ty} => {
@@ -30,6 +32,23 @@ impl TypeExpr {
         })
     }
 
+    /// returns if the field is of type SB##
+    pub fn signed(&self) -> bool {
+        let field_type = syn::parse2(self.0.clone());
+        match field_type {
+            Ok(Type::Path(TypePath {path, ..})) => {
+                if let Some(segment) = path.segments.last() {
+                    let type_name = segment.ident.to_string();
+                    type_name.starts_with("SB") &&
+                    type_name.chars().skip(2).all(|c| c.is_ascii_digit())
+                } else {
+                    false
+                }
+            }
+            _ => false
+        }
+    }
+
     /// returns the fields type of this type.
     /// this is only valid if the type implements the `BitPiece` trait.
     pub fn fields_ty(&self) -> TypeExpr {
@@ -52,7 +71,7 @@ impl BitLenExpr {
     /// returns the smallest storage type needed to store a value with this bit length.
     pub fn storage_type(&self) -> TypeExpr {
         TypeExpr(quote! {
-            <::bitpiece::BitLength<{ #self }> as ::bitpiece::AssociatedStorage>::Storage
+            <::bitpiece::BitLength<{ #self }, false> as ::bitpiece::AssociatedStorage>::Storage
         })
     }
 }
