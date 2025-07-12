@@ -295,12 +295,12 @@ pub trait BitPiece: Clone + Copy {
     fn to_fields(self) -> Self::Fields;
 
     /// constructs this type from the given bits.
-    fn from_bits(bits: Self::Bits) -> Self;
+    fn from_bits(bits: Self::Bits) -> Self {
+        Self::try_from_bits(bits).unwrap()
+    }
 
     /// tries to construct this type from the given bits, if the given bits represent a valid value of this type.
-    fn try_from_bits(bits: Self::Bits) -> Option<Self> {
-        Some(Self::from_bits(bits))
-    }
+    fn try_from_bits(bits: Self::Bits) -> Option<Self>;
 
     /// returns the underlying bits of this type.
     fn to_bits(self) -> Self::Bits;
@@ -320,8 +320,8 @@ macro_rules! impl_bitpiece_for_unsigned_int_types {
                     fn to_fields(self) -> Self::Fields {
                         self
                     }
-                    fn from_bits(bits: Self::Bits) -> Self {
-                        bits
+                    fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+                        Some(bits)
                     }
                     fn to_bits(self) -> Self::Bits {
                         self
@@ -348,8 +348,8 @@ macro_rules! impl_bitpiece_for_signed_int_types {
                     fn to_fields(self) -> Self::Fields {
                         self
                     }
-                    fn from_bits(bits: Self::Bits) -> Self {
-                        bits as Self
+                    fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+                        Some(bits as Self)
                     }
                     fn to_bits(self) -> Self::Bits {
                         self as Self::Bits
@@ -407,8 +407,8 @@ impl BitPiece for bool {
         self
     }
 
-    fn from_bits(bits: Self::Bits) -> Self {
-        bits != 0
+    fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+        Some(bits != 0)
     }
 
     fn to_bits(self) -> Self::Bits {
@@ -440,10 +440,6 @@ macro_rules! define_b_type {
 
             fn to_fields(self) -> Self::Fields {
                 self
-            }
-
-            fn from_bits(bits: Self::Bits) -> Self {
-                Self::new(bits).unwrap()
             }
 
             fn try_from_bits(bits: Self::Bits) -> Option<Self> {
@@ -661,10 +657,6 @@ macro_rules! define_sb_type {
 
             fn to_fields(self) -> Self::Fields {
                 self
-            }
-
-            fn from_bits(bits: Self::Bits) -> Self {
-                Self::try_from_bits(bits).unwrap()
             }
 
             fn try_from_bits(bits: Self::Bits) -> Option<Self> {
