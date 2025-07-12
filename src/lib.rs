@@ -485,7 +485,7 @@ macro_rules! define_b_type {
             /// fits within the bit length of this type.
             ///
             /// # safety
-            /// the provided value must fit withing the bit length of this type.
+            /// the provided value must fit within the bit length of this type.
             pub unsafe fn new_unchecked(value: $storage) -> Self {
                 Self(value)
             }
@@ -722,7 +722,7 @@ macro_rules! define_sb_type {
             /// fits within the bit length of this type.
             ///
             /// # safety
-            /// the provided value must fit withing the bit length of this type.
+            /// the provided value must fit within the bit length of this type.
             pub unsafe fn new_unchecked(value: $storage_signed) -> Self {
                 Self(value)
             }
