@@ -305,7 +305,7 @@ pub trait BitPiece: Clone + Copy {
     /// returns the underlying bits of this type.
     fn to_bits(self) -> Self::Bits;
 }
-macro_rules! impl_bitpiece_for_small_int_types {
+macro_rules! impl_bitpiece_for_unsigned_int_types {
     { $($bit_len: literal),+ $(,)? } => {
         $(
             paste! {
@@ -331,7 +331,35 @@ macro_rules! impl_bitpiece_for_small_int_types {
         )+
     };
 }
-impl_bitpiece_for_small_int_types! { 8, 16, 32 ,64 }
+impl_bitpiece_for_unsigned_int_types! { 8, 16, 32, 64 }
+
+macro_rules! impl_bitpiece_for_signed_int_types {
+    { $($bit_len: literal),+ $(,)? } => {
+        $(
+            paste! {
+                impl BitPiece for [<i $bit_len>] {
+                    const BITS: usize = $bit_len;
+                    type Bits = [<u $bit_len>];
+                    type Fields = Self;
+                    type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+                    fn from_fields(fields: Self::Fields) -> Self {
+                        fields
+                    }
+                    fn to_fields(self) -> Self::Fields {
+                        self
+                    }
+                    fn from_bits(bits: Self::Bits) -> Self {
+                        bits as Self
+                    }
+                    fn to_bits(self) -> Self::Bits {
+                        self as Self::Bits
+                    }
+                }
+            }
+        )+
+    };
+}
+impl_bitpiece_for_signed_int_types! { 8, 16, 32, 64 }
 
 /// a generic implementation of the [`BitPieceMut`] trait used for convenience.
 pub struct GenericBitPieceMut<'s, S: BitStorage + 's, P: BitPiece> {
