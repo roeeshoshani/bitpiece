@@ -61,7 +61,7 @@
 //!
 //!     // Use the generated setter methods to modify the header.
 //!     header.set_priority(Priority::Critical);
-//!     header.set_payload_len(B5::new(31).unwrap()); // Set to max value (2^5 - 1)
+//!     header.set_payload_len(B5::new(31)); // Set to max value (2^5 - 1)
 //!
 //!     assert_eq!(header.priority(), Priority::Critical);
 //!     assert_eq!(header.payload_len().get(), 31);
@@ -74,7 +74,7 @@
 //!     let from_fields = PacketHeader::from_fields(PacketHeaderFields {
 //!         is_fragment: false,
 //!         priority: Priority::Low,
-//!         payload_len: B5::new(10).unwrap(),
+//!         payload_len: B5::new(10),
 //!     });
 //!
 //!     assert_eq!(from_fields.to_bits(), 0b1010000);
@@ -114,7 +114,7 @@
 //!     assert_eq!(info.to_bits(), 0b00000000_1010);
 //!
 //!     // Set a field in a nested bitpiece
-//!     info.part1_mut().set_b(B3::new(0b110).unwrap());
+//!     info.part1_mut().set_b(B3::new(0b110));
 //!
 //!     assert_eq!(info.part1().b().get(), 0b110);
 //!     assert_eq!(info.to_bits(), 0b00000000_1100);
@@ -443,7 +443,7 @@ macro_rules! define_b_type {
             }
 
             fn try_from_bits(bits: Self::Bits) -> Option<Self> {
-                Self::new(bits)
+                Self::try_new(bits)
             }
 
             fn to_bits(self) -> Self::Bits {
@@ -468,8 +468,15 @@ macro_rules! define_b_type {
 
             /// creates a new instance of this bitfield type with the given value.
             ///
+            /// this function panics if the value does not fit within the bit length of this type.
+            pub fn new(value: $storage) -> Self {
+                Self::try_new(value).unwrap()
+            }
+
+            /// creates a new instance of this bitfield type with the given value.
+            ///
             /// if the value does not fit within the bit length of this type, returns `None`.
-            pub fn new(value: $storage) -> Option<Self> {
+            pub fn try_new(value: $storage) -> Option<Self> {
                 if value <= Self::MAX.0 {
                     Some(Self(value))
                 } else {
@@ -670,7 +677,7 @@ macro_rules! define_sb_type {
                 } else {
                     bits
                 };
-                Self::new(sign_extended as $storage_signed)
+                Self::try_new(sign_extended as $storage_signed)
             }
 
             fn to_bits(self) -> Self::Bits {
@@ -701,8 +708,15 @@ macro_rules! define_sb_type {
 
             /// creates a new instance of this bitfield type with the given value.
             ///
+            /// this function panics if the value does not fit within the bit length of this type.
+            pub fn new(value: $storage_signed) -> Self {
+                Self::try_new(value).unwrap()
+            }
+
+            /// creates a new instance of this bitfield type with the given value.
+            ///
             /// if the value does not fit within the bit length of this type, returns `None`.
-            pub fn new(value: $storage_signed) -> Option<Self> {
+            pub fn try_new(value: $storage_signed) -> Option<Self> {
                 if value <= Self::MAX.0 && value >= Self::MIN.0 {
                     Some(Self(value))
                 } else {

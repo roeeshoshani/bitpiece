@@ -74,10 +74,10 @@ fn test_b_types_max_value() {
 
 #[test]
 fn test_b_types_enforce_length() {
-    assert!(B3::new(0b000).is_some());
-    assert!(B3::new(0b111).is_some());
-    assert!(B3::new(0b1000).is_none());
-    assert!(B3::new(0b10000011).is_none());
+    assert!(B3::try_new(0b000).is_some());
+    assert!(B3::try_new(0b111).is_some());
+    assert!(B3::try_new(0b1000).is_none());
+    assert!(B3::try_new(0b10000011).is_none());
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn from_to_fields() {
         },
         b: BitPieceBFields {
             x: 0b1111100,
-            y: B3::new(0b010).unwrap(),
+            y: B3::new(0b010),
         },
     };
     let value = BitPieceComplex::from_fields(fields);
@@ -108,7 +108,7 @@ fn from_to_fields() {
     assert_eq!(value.a().y(), BitPieceEnum::Variant1);
     assert_eq!(value.a().storage, 0b011);
     assert_eq!(value.b().x(), 0b1111100);
-    assert_eq!(value.b().y(), B3::new(0b010).unwrap());
+    assert_eq!(value.b().y(), B3::new(0b010));
     assert_eq!(value.b().storage, 0b01000000000000000000000000001111100);
     assert_eq!(value.storage, 0b01000000000000000000000000001111100011);
 
@@ -194,12 +194,12 @@ fn enum_try_from_bits_out_of_range() {
 
 #[test]
 fn b_types_try_from_bits() {
-    assert_eq!(B1::try_from_bits(0), Some(B1::new(0).unwrap()));
-    assert_eq!(B1::try_from_bits(1), Some(B1::new(1).unwrap()));
+    assert_eq!(B1::try_from_bits(0), Some(B1::new(0)));
+    assert_eq!(B1::try_from_bits(1), Some(B1::new(1)));
     assert_eq!(B1::try_from_bits(2), None);
 
-    assert_eq!(B6::try_from_bits(17), Some(B6::new(17).unwrap()));
-    assert_eq!(B6::try_from_bits(2), Some(B6::new(2).unwrap()));
+    assert_eq!(B6::try_from_bits(17), Some(B6::new(17)));
+    assert_eq!(B6::try_from_bits(2), Some(B6::new(2)));
     assert_eq!(B6::try_from_bits(241), None);
 }
 
@@ -299,7 +299,7 @@ fn signed_i8_extraction() {
     // c = true (1)
     let raw_val1 = 0b1_11111111_101;
     let value1 = StructWithSigned::from_bits(raw_val1);
-    assert_eq!(value1.a(), B3::new(5).unwrap());
+    assert_eq!(value1.a(), B3::new(5));
     assert_eq!(value1.b(), -1i8);
     assert_eq!(value1.c(), true);
 
@@ -309,7 +309,7 @@ fn signed_i8_extraction() {
     // c = false (0)
     let raw_val2 = 0b0_00000111_010;
     let value2 = StructWithSigned::from_bits(raw_val2);
-    assert_eq!(value2.a(), B3::new(2).unwrap());
+    assert_eq!(value2.a(), B3::new(2));
     assert_eq!(value2.b(), 7i8);
     assert_eq!(value2.c(), false);
 
@@ -319,7 +319,7 @@ fn signed_i8_extraction() {
     // c = true (1)
     let raw_val3 = 0b1_10000000_111;
     let value3 = StructWithSigned::from_bits(raw_val3);
-    assert_eq!(value3.a(), B3::new(7).unwrap());
+    assert_eq!(value3.a(), B3::new(7));
     assert_eq!(value3.b(), -128i8);
     assert_eq!(value3.c(), true);
 }
@@ -328,7 +328,7 @@ fn signed_i8_extraction() {
 fn signed_i8_modification() {
     let mut value = StructWithSigned::zeroes();
     assert_eq!(value.storage, 0);
-    assert_eq!(value.a(), B3::new(0).unwrap());
+    assert_eq!(value.a(), B3::new(0));
     assert_eq!(value.b(), 0i8);
     assert_eq!(value.c(), false);
 
@@ -336,22 +336,22 @@ fn signed_i8_modification() {
     value.set_b(-1);
     assert_eq!(value.b(), -1i8);
     assert_eq!(value.c(), false);
-    assert_eq!(value.a(), B3::new(0).unwrap());
+    assert_eq!(value.a(), B3::new(0));
     // Storage should be the i8 value (-1, which is 0xFF) shifted by 3 (for field `a`)
     assert_eq!(value.storage, (0b11111111u16) << 3);
 
     // Set other fields
-    value.set_a(B3::new(0b101).unwrap());
+    value.set_a(B3::new(0b101));
     value.set_c(true);
     assert_eq!(value.b(), -1i8);
-    assert_eq!(value.a(), B3::new(5).unwrap());
+    assert_eq!(value.a(), B3::new(5));
     assert_eq!(value.c(), true);
     assert_eq!(value.storage, 0b1_11111111_101);
 
     // Change the signed value back to positive
     value.set_b(42);
     assert_eq!(value.b(), 42i8);
-    assert_eq!(value.a(), B3::new(5).unwrap());
+    assert_eq!(value.a(), B3::new(5));
     assert_eq!(value.c(), true);
     assert_eq!(value.storage, 0b1_00101010_101);
 }
@@ -363,7 +363,7 @@ fn signed_from_to_fields() {
         a: -20000, // i16
         b: true,
         c: 1_000_000_000, // i32
-        d: B2::new(3).unwrap(),
+        d: B2::new(3),
     };
     let value = StructWithSigned2::from_fields(fields);
 
@@ -371,7 +371,7 @@ fn signed_from_to_fields() {
     assert_eq!(value.a(), -20000i16);
     assert_eq!(value.b(), true);
     assert_eq!(value.c(), 1_000_000_000i32);
-    assert_eq!(value.d(), B2::new(3).unwrap());
+    assert_eq!(value.d(), B2::new(3));
 
     // Check that converting back yields the same fields
     let converted_fields = value.to_fields();
@@ -397,10 +397,10 @@ fn sb_type_extraction() {
     // d = 5 (0b101)
     let raw_val1 = 0b101_0101010_1_11111;
     let value1 = StructWithSb::from_bits(raw_val1);
-    assert_eq!(value1.a(), SB5::new(-1).unwrap());
+    assert_eq!(value1.a(), SB5::new(-1));
     assert_eq!(value1.b(), true);
-    assert_eq!(value1.c(), SB7::new(42).unwrap());
-    assert_eq!(value1.d(), B3::new(5).unwrap());
+    assert_eq!(value1.c(), SB7::new(42));
+    assert_eq!(value1.d(), B3::new(5));
 
     // Test with another set of values.
     // a = 15 (0b01111) (Max positive for SB5)
@@ -409,10 +409,10 @@ fn sb_type_extraction() {
     // d = 0 (0b000)
     let raw_val2 = 0b000_1000100_0_01111;
     let value2 = StructWithSb::from_bits(raw_val2);
-    assert_eq!(value2.a(), SB5::new(15).unwrap());
+    assert_eq!(value2.a(), SB5::new(15));
     assert_eq!(value2.b(), false);
-    assert_eq!(value2.c(), SB7::new(-60).unwrap());
-    assert_eq!(value2.d(), B3::new(0).unwrap());
+    assert_eq!(value2.c(), SB7::new(-60));
+    assert_eq!(value2.d(), B3::new(0));
 
     // Test with minimum values.
     // a = -16 (0b10000) (Min for SB5)
@@ -421,65 +421,65 @@ fn sb_type_extraction() {
     // d = 7 (0b111)
     let raw_val3 = 0b111_1000000_1_10000;
     let value3 = StructWithSb::from_bits(raw_val3);
-    assert_eq!(value3.a(), SB5::new(-16).unwrap());
+    assert_eq!(value3.a(), SB5::new(-16));
     assert_eq!(value3.b(), true);
-    assert_eq!(value3.c(), SB7::new(-64).unwrap());
-    assert_eq!(value3.d(), B3::new(7).unwrap());
+    assert_eq!(value3.c(), SB7::new(-64));
+    assert_eq!(value3.d(), B3::new(7));
 }
 
 #[test]
 fn sb_type_modification() {
     let mut value = StructWithSb::zeroes();
     assert_eq!(value.storage, 0);
-    assert_eq!(value.a(), SB5::new(0).unwrap());
+    assert_eq!(value.a(), SB5::new(0));
     assert_eq!(value.b(), false);
-    assert_eq!(value.c(), SB7::new(0).unwrap());
-    assert_eq!(value.d(), B3::new(0).unwrap());
+    assert_eq!(value.c(), SB7::new(0));
+    assert_eq!(value.d(), B3::new(0));
 
     // Set a negative value for 'a'
-    value.set_a(SB5::new(-5).unwrap());
-    assert_eq!(value.a(), SB5::new(-5).unwrap());
+    value.set_a(SB5::new(-5));
+    assert_eq!(value.a(), SB5::new(-5));
     assert_eq!(value.b(), false);
-    assert_eq!(value.c(), SB7::new(0).unwrap());
-    assert_eq!(value.d(), B3::new(0).unwrap());
+    assert_eq!(value.c(), SB7::new(0));
+    assert_eq!(value.d(), B3::new(0));
     assert_eq!(value.storage, 0b000_0000000_0_11011);
 
     // Set a positive value for 'c'
-    value.set_c(SB7::new(21).unwrap());
-    assert_eq!(value.a(), SB5::new(-5).unwrap());
-    assert_eq!(value.c(), SB7::new(21).unwrap());
+    value.set_c(SB7::new(21));
+    assert_eq!(value.a(), SB5::new(-5));
+    assert_eq!(value.c(), SB7::new(21));
     assert_eq!(value.storage, 0b000_0010101_0_11011);
 
     // Set other fields
     value.set_b(true);
-    value.set_d(B3::new(4).unwrap());
-    assert_eq!(value.a(), SB5::new(-5).unwrap());
+    value.set_d(B3::new(4));
+    assert_eq!(value.a(), SB5::new(-5));
     assert_eq!(value.b(), true);
-    assert_eq!(value.c(), SB7::new(21).unwrap());
-    assert_eq!(value.d(), B3::new(4).unwrap());
+    assert_eq!(value.c(), SB7::new(21));
+    assert_eq!(value.d(), B3::new(4));
     assert_eq!(value.storage, 0b100_0010101_1_11011);
 
     // Change 'a' back to a positive value
-    value.set_a(SB5::new(10).unwrap());
-    assert_eq!(value.a(), SB5::new(10).unwrap());
+    value.set_a(SB5::new(10));
+    assert_eq!(value.a(), SB5::new(10));
     assert_eq!(value.storage, 0b100_0010101_1_01010);
 }
 
 #[test]
 fn sb_type_from_to_fields() {
     let fields = StructWithSbFields {
-        a: SB5::new(-10).unwrap(),
+        a: SB5::new(-10),
         b: true,
-        c: SB7::new(55).unwrap(),
-        d: B3::new(6).unwrap(),
+        c: SB7::new(55),
+        d: B3::new(6),
     };
     let value = StructWithSb::from_fields(fields);
 
     // Check that the values were stored correctly
-    assert_eq!(value.a(), SB5::new(-10).unwrap());
+    assert_eq!(value.a(), SB5::new(-10));
     assert_eq!(value.b(), true);
-    assert_eq!(value.c(), SB7::new(55).unwrap());
-    assert_eq!(value.d(), B3::new(6).unwrap());
+    assert_eq!(value.c(), SB7::new(55));
+    assert_eq!(value.d(), B3::new(6));
 
     // Check that converting back yields the same fields
     let converted_fields = value.to_fields();
@@ -501,9 +501,9 @@ fn sb_type_try_from_bits() {
     // a = 1, b = -2 (0b110), c = 2
     let raw_valid = 0b10_110_01;
     let value = StructWithSbTryFrom::try_from_bits(raw_valid).unwrap();
-    assert_eq!(value.a(), B2::new(1).unwrap());
-    assert_eq!(value.b(), SB3::new(-2).unwrap());
-    assert_eq!(value.c(), B2::new(2).unwrap());
+    assert_eq!(value.a(), B2::new(1));
+    assert_eq!(value.b(), SB3::new(-2));
+    assert_eq!(value.c(), B2::new(2));
 
     // `try_from_bits` should succeed because SB3 can represent all values from 0..=7
     // when treated as unsigned bits, even though they map to signed values.
@@ -539,16 +539,16 @@ fn test_sb_types_min_value() {
 #[test]
 fn test_sb_types_enforce_length() {
     // SB3 has a max of 3 and a min of -4
-    assert!(SB3::new(0).is_some());
-    assert!(SB3::new(3).is_some());
-    assert!(SB3::new(-2).is_some());
-    assert!(SB3::new(-4).is_some());
+    assert!(SB3::try_new(0).is_some());
+    assert!(SB3::try_new(3).is_some());
+    assert!(SB3::try_new(-2).is_some());
+    assert!(SB3::try_new(-4).is_some());
 
-    assert!(SB3::new(4).is_none());
-    assert!(SB3::new(-5).is_none());
-    assert!(SB3::new(16).is_none());
-    assert!(SB3::new(-128).is_none());
-    assert!(SB3::new(127).is_none());
+    assert!(SB3::try_new(4).is_none());
+    assert!(SB3::try_new(-5).is_none());
+    assert!(SB3::try_new(16).is_none());
+    assert!(SB3::try_new(-128).is_none());
+    assert!(SB3::try_new(127).is_none());
 
     assert!(SB3::try_from_bits(0b1000).is_none());
     assert!(SB3::try_from_bits(0b10001011).is_none());
