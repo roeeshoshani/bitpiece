@@ -5,8 +5,8 @@ use syn::{parse_quote, DeriveInput, FieldsNamed};
 use crate::{
     newtypes::{BitLenExpr, BitOffsetExpr, TypeExpr},
     utils::{
-        bitpiece_gen_impl, gen_deserialization_code, gen_explicit_bit_length_assertion,
-        not_supported_err, BitPieceGenImplParams,
+        bitpiece_gen_impl, gen_explicit_bit_length_assertion, not_supported_err,
+        BitPieceGenImplParams,
     },
 };
 
@@ -51,7 +51,6 @@ pub fn bitpiece_named_struct(
         bit_len: bit_len.clone(),
         storage_type: storage_type.clone(),
         serialization_code: quote! { self.storage },
-        deserialization_code: gen_deserialization_code(&input.ident),
         try_deserialization_code: Some(gen_try_deserialization_code(fields, &storage_type)),
         mut_type: quote! { #ident_mut<'s, S> },
         fields_type: TypeExpr(quote! { #fields_struct_ident }),

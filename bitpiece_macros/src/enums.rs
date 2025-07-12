@@ -4,9 +4,7 @@ use syn::{DataEnum, DeriveInput, Fields};
 
 use crate::{
     newtypes::{BitLenExpr, TypeExpr},
-    utils::{
-        bitpiece_gen_impl, gen_deserialization_code, not_supported_err, BitPieceGenImplParams,
-    },
+    utils::{bitpiece_gen_impl, not_supported_err, BitPieceGenImplParams},
 };
 
 fn enum_variant_values<'a>(
@@ -136,7 +134,6 @@ pub fn bitpiece_enum(
             data_enum,
             &storage_type,
         )),
-        deserialization_code: gen_deserialization_code(&input.ident),
         fields_type: TypeExpr(quote! { Self }),
         to_fields_code: quote! { self },
         from_fields_code: quote! { fields },
