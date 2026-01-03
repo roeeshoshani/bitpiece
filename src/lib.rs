@@ -358,7 +358,7 @@ macro_rules! impl_bitpiece_for_unsigned_int_types {
                         <Self as BitPiece>::Converter::to_fields(self)
                     }
                 }
-                bitpiece_check_base_impl! { [<u $bit_len>] }
+                bitpiece_check_full_impl! { [<u $bit_len>] }
             }
         )+
     };
@@ -418,7 +418,7 @@ macro_rules! impl_bitpiece_for_signed_int_types {
                         <Self as BitPiece>::Converter::to_fields(self)
                     }
                 }
-                bitpiece_check_base_impl! { [<i $bit_len>] }
+                bitpiece_check_full_impl! { [<i $bit_len>] }
             }
         )+
     };
@@ -506,7 +506,7 @@ impl BitPieceHasFields for bool {
         <Self as BitPiece>::Converter::to_fields(self)
     }
 }
-bitpiece_check_base_impl! { bool }
+bitpiece_check_full_impl! { bool }
 
 macro_rules! define_b_type {
     { $bit_len: literal, $ident: ident, $storage: ty } => {
@@ -616,7 +616,7 @@ macro_rules! define_b_type {
                 core::fmt::Debug::fmt(&self.0, f)
             }
         }
-        bitpiece_check_base_impl! { $ident }
+        bitpiece_check_full_impl! { $ident }
     };
 }
 macro_rules! define_b_types {
@@ -761,7 +761,7 @@ macro_rules! define_sb_type {
         impl BitPiece for $ident {
             const BITS: usize = $bit_len;
             const ZEROES: Self = Self(0);
-            const ONES: Self = Self(Self::MASK as $storage_signed);
+            const ONES: Self = Self(Self::STORAGE_MASK as $storage_signed);
             type Bits = $storage;
             type Converter = Self;
             fn try_from_bits(bits: Self::Bits) -> Option<Self> {
@@ -803,7 +803,7 @@ macro_rules! define_sb_type {
                 // sign extend if needed
                 let sign_extended = if sign_bit != 0 {
                     // set all bits above the bit length to 1, which will sign extend it
-                    bits | (!Self::MASK)
+                    bits | (!Self::STORAGE_MASK)
                 } else {
                     bits
                 };
@@ -813,7 +813,7 @@ macro_rules! define_sb_type {
                 Self::try_from_bits(bits).unwrap()
             }
             pub const fn to_bits(self) -> $storage {
-                (self.0 as $storage) & Self::MASK
+                (self.0 as $storage) & Self::STORAGE_MASK
             }
             pub const fn const_eq(a: Self, b: Self) -> bool {
                 a.0 == b.0
@@ -822,7 +822,7 @@ macro_rules! define_sb_type {
         }
         impl $ident {
             /// a mask of the bit length of this type.
-            const MASK: $storage = (
+            const STORAGE_MASK: $storage = (
                 if $bit_len == <$storage>::BITS {
                     // if the bit length is equal to the amount of bits in our storage type, avoid the overflow
                     // which will happen when shifting, and just returns the maximum value of the underlying
@@ -881,6 +881,7 @@ macro_rules! define_sb_type {
                 core::fmt::Debug::fmt(&self.0, f)
             }
         }
+        bitpiece_check_full_impl!{$ident}
     };
 }
 macro_rules! define_sb_types {
