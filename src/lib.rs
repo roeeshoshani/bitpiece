@@ -300,6 +300,7 @@ pub trait BitPieceHasFields: BitPiece {
     /// the type which represents the expanded view of this bitpiece.
     type Fields;
     fn from_fields(fields: Self::Fields) -> Self;
+    fn to_fields(self) -> Self::Fields;
 }
 
 macro_rules! impl_bitpiece_for_unsigned_int_types {
@@ -342,6 +343,9 @@ macro_rules! impl_bitpiece_for_unsigned_int_types {
                     type Fields = Self;
                     fn from_fields(fields: Self::Fields) -> Self {
                         <Self as BitPiece>::Converter::from_fields(fields)
+                    }
+                    fn to_fields(self) -> Self::Fields {
+                        <Self as BitPiece>::Converter::to_fields(self)
                     }
                 }
                 bitpiece_check_base_impl! { [<u $bit_len>] }
@@ -389,6 +393,12 @@ macro_rules! impl_bitpiece_for_signed_int_types {
                 }
                 impl BitPieceHasFields for [<i $bit_len>] {
                     type Fields = Self;
+                    fn from_fields(fields: Self::Fields) -> Self {
+                        <Self as BitPiece>::Converter::from_fields(fields)
+                    }
+                    fn to_fields(self) -> Self::Fields {
+                        <Self as BitPiece>::Converter::to_fields(self)
+                    }
                 }
                 bitpiece_check_base_impl! { [<i $bit_len>] }
             }
@@ -463,6 +473,12 @@ impl BitPieceHasMutRef for bool {
 }
 impl BitPieceHasFields for bool {
     type Fields = bool;
+    fn from_fields(fields: Self::Fields) -> Self {
+        <Self as BitPiece>::Converter::from_fields(fields)
+    }
+    fn to_fields(self) -> Self::Fields {
+        <Self as BitPiece>::Converter::to_fields(self)
+    }
 }
 bitpiece_check_base_impl! { bool }
 
@@ -496,6 +512,12 @@ macro_rules! define_b_type {
         }
         impl BitPieceHasFields for $ident {
             type Fields = Self;
+            fn from_fields(fields: Self::Fields) -> Self {
+                <Self as BitPiece>::Converter::from_fields(fields)
+            }
+            fn to_fields(self) -> Self::Fields {
+                <Self as BitPiece>::Converter::to_fields(self)
+            }
         }
         impl $ident {
             pub const fn from_fields(fields: $ident) -> $ident {
