@@ -196,7 +196,10 @@
 
 #![no_std]
 
+pub mod check;
+
 pub use bitpiece_macros::bitpiece;
+pub use const_for;
 use core::{marker::PhantomData, num::TryFromIntError};
 use paste::paste;
 
@@ -256,77 +259,92 @@ impl_associated_storage! {
 }
 
 /// a mutable reference to a bitpiece inside another bitpiece.
-pub trait BitPieceMut<'s, S: BitStorage + 's, P: BitPiece> {
+pub trait BitPieceMutRef<'s, S: BitStorage + 's, P: BitPiece> {
     fn new(storage: &'s mut S, start_bit_index: usize) -> Self;
     fn get(&self) -> P;
     fn set(&mut self, new_value: P);
 }
 
-/// a bitpiece.
-/// this is the core trait of this crate and represents a type with a specified bit length which can be used in a standalone way
-/// or inside another bitpiece.
-pub trait BitPiece: Clone + Copy {
+pub trait BitPiece: Copy {
     /// the length in bits of this type.
     const BITS: usize;
+
+    /// the maximum possible value.
+    const MAX: Self;
+
+    /// a value with all zero bits.
+    const ZEROES: Self;
+
+    /// a value with all one bits.
+    const ONES: Self;
 
     /// the storage type used internally to store the bits of this bitpiece.
     type Bits: BitStorage;
 
-    /// the type used to represent a mutable reference to this type inside another bitpiece.
-    type Mut<'s, S: BitStorage + 's>: BitPieceMut<'s, S, Self>;
+    /// a converter types which implements all conversion functions (e.g `from_bits`).
+    ///
+    /// this is necessary because we can't implement methods directly on foreign types such as `u32` or `bool`, so we must
+    /// implement them on another type.
+    ///
+    /// for non-foreign types, this will point to the trait's `Self` type.
+    /// for foreign types, this will point to a type-specific converter type.
+    type Converter;
+}
 
+pub trait BitPieceHasMutRef: BitPiece {
+    /// the type used to represent a mutable reference to this type inside another bitpiece.
+    type Mut<'s, S: BitStorage + 's>;
+}
+
+pub trait BitPieceHasFields: BitPiece {
     /// the type which represents the expanded view of this bitpiece.
     type Fields;
-
-    /// constructs this type with a value of zero for all fields.
-    fn zeroes() -> Self {
-        Self::from_bits(Self::Bits::ZEROES)
-    }
-
-    /// constructs this type with a value of one for all fields.
-    fn ones() -> Self {
-        Self::from_bits(Self::Bits::ONES)
-    }
-
-    /// constructs this type from the given fields.
     fn from_fields(fields: Self::Fields) -> Self;
-
-    /// return the values of all fields of this bitpiece.
-    fn to_fields(self) -> Self::Fields;
-
-    /// constructs this type from the given bits.
-    fn from_bits(bits: Self::Bits) -> Self {
-        Self::try_from_bits(bits).unwrap()
-    }
-
-    /// tries to construct this type from the given bits, if the given bits represent a valid value of this type.
-    fn try_from_bits(bits: Self::Bits) -> Option<Self>;
-
-    /// returns the underlying bits of this type.
-    fn to_bits(self) -> Self::Bits;
 }
+
 macro_rules! impl_bitpiece_for_unsigned_int_types {
     { $($bit_len: literal),+ $(,)? } => {
         $(
             paste! {
-                impl BitPiece for [<u $bit_len>] {
-                    const BITS: usize = $bit_len;
-                    type Bits = Self;
-                    type Fields = Self;
-                    type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
-                    fn from_fields(fields: Self::Fields) -> Self {
+                pub struct [<BitPieceU $bit_len Converter>];
+                impl [<BitPieceU $bit_len Converter>] {
+                    pub const fn from_fields(fields: [<u $bit_len>]) -> [<u $bit_len>] {
                         fields
                     }
-                    fn to_fields(self) -> Self::Fields {
-                        self
+                    pub const fn to_fields(x: [<u $bit_len>]) -> [<u $bit_len>] {
+                        x
                     }
-                    fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+                    pub const fn try_from_bits(bits: [<u $bit_len>]) -> Option<[<u $bit_len>]> {
                         Some(bits)
                     }
-                    fn to_bits(self) -> Self::Bits {
-                        self
+                    pub const fn from_bits(bits: [<u $bit_len>]) -> [<u $bit_len>] {
+                        bits
+                    }
+                    pub const fn to_bits(x: [<u $bit_len>]) -> [<u $bit_len>] {
+                        x
+                    }
+                    pub const fn const_eq(a: [<u $bit_len>], b: [<u $bit_len>]) -> bool {
+                        a == b
                     }
                 }
+                impl BitPiece for [<u $bit_len>] {
+                    const BITS: usize = $bit_len;
+                    const MAX: Self = !0;
+                    const ZEROES: Self = 0;
+                    const ONES: Self = !0;
+                    type Bits = Self;
+                    type Converter = [<BitPieceU $bit_len Converter>];
+                }
+                impl BitPieceHasMutRef for [<u $bit_len>] {
+                    type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+                }
+                impl BitPieceHasFields for [<u $bit_len>] {
+                    type Fields = Self;
+                    fn from_fields(fields: Self::Fields) -> Self {
+                        <Self as BitPiece>::Converter::from_fields(fields)
+                    }
+                }
+                bitpiece_check_base_impl! { [<u $bit_len>] }
             }
         )+
     };
@@ -337,24 +355,42 @@ macro_rules! impl_bitpiece_for_signed_int_types {
     { $($bit_len: literal),+ $(,)? } => {
         $(
             paste! {
-                impl BitPiece for [<i $bit_len>] {
-                    const BITS: usize = $bit_len;
-                    type Bits = [<u $bit_len>];
-                    type Fields = Self;
-                    type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
-                    fn from_fields(fields: Self::Fields) -> Self {
+                pub struct [<BitPieceI $bit_len Converter>];
+                impl [<BitPieceI $bit_len Converter>] {
+                    pub const fn from_fields(fields: [<i $bit_len>]) -> [<i $bit_len>] {
                         fields
                     }
-                    fn to_fields(self) -> Self::Fields {
-                        self
+                    pub const fn to_fields(x: [<i $bit_len>]) -> [<i $bit_len>] {
+                        x
                     }
-                    fn try_from_bits(bits: Self::Bits) -> Option<Self> {
-                        Some(bits as Self)
+                    pub const fn try_from_bits(bits: [<u $bit_len>]) -> Option<[<i $bit_len>]> {
+                        Some(bits as [<i $bit_len>])
                     }
-                    fn to_bits(self) -> Self::Bits {
-                        self as Self::Bits
+                    pub const fn from_bits(bits: [<u $bit_len>]) -> [<i $bit_len>] {
+                        bits as [<i $bit_len>]
+                    }
+                    pub const fn to_bits(x: [<i $bit_len>]) -> [<u $bit_len>] {
+                        x as [<u $bit_len>]
+                    }
+                    pub const fn const_eq(a: [<i $bit_len>], b: [<i $bit_len>]) -> bool {
+                        a == b
                     }
                 }
+                impl BitPiece for [<i $bit_len>] {
+                    const BITS: usize = $bit_len;
+                    const MAX: Self = !0;
+                    const ZEROES: Self = 0;
+                    const ONES: Self = !0;
+                    type Bits = [<u $bit_len>];
+                    type Converter = [<BitPieceI $bit_len Converter>];
+                }
+                impl BitPieceHasMutRef for [<i $bit_len>] {
+                    type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+                }
+                impl BitPieceHasFields for [<i $bit_len>] {
+                    type Fields = Self;
+                }
+                bitpiece_check_base_impl! { [<i $bit_len>] }
             }
         )+
     };
@@ -367,8 +403,8 @@ pub struct GenericBitPieceMut<'s, S: BitStorage + 's, P: BitPiece> {
     phantom: PhantomData<P>,
 }
 
-impl<'s, S: BitStorage + 's, P: BitPiece> BitPieceMut<'s, S, P> for GenericBitPieceMut<'s, S, P> {
-    fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
+impl<'s, S: BitStorage + 's, P: BitPiece> GenericBitPieceMut<'s, S, P> {
+    pub fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
         Self {
             bits: BitsMut::new(storage, start_bit_index),
             phantom: PhantomData,
@@ -386,39 +422,49 @@ impl<'s, S: BitStorage + 's, P: BitPiece> BitPieceMut<'s, S, P> for GenericBitPi
     }
 }
 
-impl BitPiece for bool {
-    const BITS: usize = 1;
-
-    type Bits = u8;
-
-    type Fields = bool;
-
-    type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
-
-    fn zeroes() -> Self {
-        return false;
-    }
-
-    fn from_fields(fields: Self::Fields) -> Self {
+pub struct BitPieceBoolConverter;
+impl BitPieceBoolConverter {
+    pub const fn from_fields(fields: bool) -> bool {
         fields
     }
-
-    fn to_fields(self) -> Self::Fields {
-        self
+    pub const fn to_fields(x: bool) -> bool {
+        x
     }
-
-    fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+    pub const fn try_from_bits(bits: u8) -> Option<bool> {
         Some(bits != 0)
     }
-
-    fn to_bits(self) -> Self::Bits {
-        if self {
+    pub const fn from_bits(bits: u8) -> bool {
+        bits != 0
+    }
+    pub const fn to_bits(x: bool) -> u8 {
+        if x {
             1
         } else {
             0
         }
     }
+    pub const fn const_eq(a: bool, b: bool) -> bool {
+        a == b
+    }
 }
+
+impl BitPiece for bool {
+    const BITS: usize = 1;
+    const MAX: Self = true;
+    const ZEROES: Self = false;
+    const ONES: Self = true;
+
+    type Bits = u8;
+
+    type Converter = BitPieceBoolConverter;
+}
+impl BitPieceHasMutRef for bool {
+    type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+}
+impl BitPieceHasFields for bool {
+    type Fields = bool;
+}
+bitpiece_check_base_impl! { bool }
 
 macro_rules! define_b_type {
     { $bit_len: literal, $ident: ident, $storage: ty } => {
@@ -427,32 +473,7 @@ macro_rules! define_b_type {
         pub struct $ident($storage);
         impl BitPiece for $ident {
             const BITS: usize = $bit_len;
-
-            type Bits = $storage;
-
-            type Fields = Self;
-
-            type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
-
-            fn from_fields(fields: Self::Fields) -> Self {
-                fields
-            }
-
-            fn to_fields(self) -> Self::Fields {
-                self
-            }
-
-            fn try_from_bits(bits: Self::Bits) -> Option<Self> {
-                Self::try_new(bits)
-            }
-
-            fn to_bits(self) -> Self::Bits {
-                self.0
-            }
-        }
-        impl $ident {
-            /// the max allowed value for this type.
-            pub const MAX: Self = Self(
+            const MAX: Self = Self(
                 if $bit_len == <$storage>::BITS {
                     // if the bit length is equal to the amount of bits in our storage type, avoid the overflow
                     // which will happen when shifting, and just returns the maximum value of the underlying
@@ -462,21 +483,51 @@ macro_rules! define_b_type {
                     ((1 as $storage) << $bit_len).wrapping_sub(1)
                 }
             );
+            const ZEROES: Self = Self(0);
+            const ONES: Self = Self::MAX;
 
-            /// the bit length of this type.
-            pub const BIT_LENGTH: usize = $bit_len;
+            type Bits = $storage;
+
+            type Converter = Self;
+        }
+
+        impl BitPieceHasMutRef for $ident {
+            type Mut<'s, S: BitStorage + 's> = GenericBitPieceMut<'s, S, Self>;
+        }
+        impl BitPieceHasFields for $ident {
+            type Fields = Self;
+        }
+        impl $ident {
+            pub const fn from_fields(fields: $ident) -> $ident {
+                fields
+            }
+            pub const fn to_fields(x: $ident) -> $ident {
+                x
+            }
+            pub const fn try_from_bits(bits: $storage) -> Option<$ident> {
+                Self::try_new(bits)
+            }
+            pub const fn from_bits(bits: $storage) -> $ident {
+                Self::new(bits)
+            }
+            pub const fn to_bits(x: $ident) -> $storage {
+                x.0
+            }
+            pub const fn const_eq(a: Self, b: Self) -> bool {
+                a.0 == b.0
+            }
 
             /// creates a new instance of this bitfield type with the given value.
             ///
             /// this function panics if the value does not fit within the bit length of this type.
-            pub fn new(value: $storage) -> Self {
+            pub const fn new(value: $storage) -> Self {
                 Self::try_new(value).unwrap()
             }
 
             /// creates a new instance of this bitfield type with the given value.
             ///
             /// if the value does not fit within the bit length of this type, returns `None`.
-            pub fn try_new(value: $storage) -> Option<Self> {
+            pub const fn try_new(value: $storage) -> Option<Self> {
                 if value <= Self::MAX.0 {
                     Some(Self(value))
                 } else {
@@ -489,12 +540,12 @@ macro_rules! define_b_type {
             ///
             /// # safety
             /// the provided value must fit within the bit length of this type.
-            pub unsafe fn new_unchecked(value: $storage) -> Self {
+            pub const unsafe fn new_unchecked(value: $storage) -> Self {
                 Self(value)
             }
 
             /// returns the inner value.
-            pub fn get(&self) -> $storage {
+            pub const fn get(&self) -> $storage {
                 self.0
             }
         }
@@ -508,6 +559,7 @@ macro_rules! define_b_type {
                 core::fmt::Debug::fmt(&self.0, f)
             }
         }
+        bitpiece_check_base_impl! { $ident }
     };
 }
 macro_rules! define_b_types {
@@ -580,7 +632,7 @@ pub struct BitsMut<'s, S: BitStorage> {
 }
 impl<'s, S: BitStorage> BitsMut<'s, S> {
     #[inline(always)]
-    pub fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
+    pub const fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
         Self {
             storage,
             start_bit_index,
@@ -589,7 +641,7 @@ impl<'s, S: BitStorage> BitsMut<'s, S> {
 
     /// returns `len` bits starting at relative bit index `rel_bit_index`.
     #[inline(always)]
-    pub fn get_bits(&self, rel_bit_index: usize, len: usize) -> u64 {
+    pub const fn get_bits(&self, rel_bit_index: usize, len: usize) -> u64 {
         extract_bits(
             self.storage.to_u64(),
             self.start_bit_index + rel_bit_index,
@@ -599,7 +651,7 @@ impl<'s, S: BitStorage> BitsMut<'s, S> {
 
     /// modifies the `len` bits starting at relative bit index `rel_bit_index` to the given `new_value`.
     #[inline(always)]
-    pub fn set_bits(&mut self, rel_bit_index: usize, len: usize, new_value: u64) {
+    pub const fn set_bits(&mut self, rel_bit_index: usize, len: usize, new_value: u64) {
         *self.storage = S::from_u64(modify_bits(
             self.storage.to_u64(),
             self.start_bit_index + rel_bit_index,

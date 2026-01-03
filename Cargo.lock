@@ -7,7 +7,9 @@ name = "bitpiece"
 version = "0.4.0"
 dependencies = [
  "bitpiece_macros",
+ "const_for",
  "paste",
+ "static_assertions",
 ]
 
 [[package]]
@@ -22,6 +24,12 @@ dependencies = [
  "strum",
  "syn",
 ]
+
+[[package]]
+name = "const_for"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9c50fcfdf972929aff202c16b80086aa3cfc6a3a820af714096c58c7c1d0582"
 
 [[package]]
 name = "convert_case"
@@ -76,6 +84,12 @@ checksum = "0fa76aaf39101c457836aec0ce2316dbdc3ab723cdda1c6bd4e6ad4208acaca7"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "strum"
