@@ -761,7 +761,7 @@ macro_rules! define_sb_type {
         impl BitPiece for $ident {
             const BITS: usize = $bit_len;
             const ZEROES: Self = Self(0);
-            const ONES: Self = Self(Self::STORAGE_MASK as $storage_signed);
+            const ONES: Self = Self::from_bits(Self::STORAGE_MASK);
             type Bits = $storage;
             type Converter = Self;
             fn try_from_bits(bits: Self::Bits) -> Option<Self> {
