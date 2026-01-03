@@ -67,7 +67,6 @@ macro_rules! bitpiece_check_base_impl {
 macro_rules! bitpiece_check_fields_impl {
     {$t: ty} => {
         const _: () = {
-            type Converter = <$t as $crate::BitPiece>::Converter;
             $crate::bitpiece_check_do_for_each_value!($t, value, {
                 $crate::bitpiece_check_const_assert_bits_eq!(
                     $t,
