@@ -3,9 +3,20 @@ mod named_structs;
 mod newtypes;
 mod utils;
 
+use std::{collections::HashSet, str::FromStr};
+
 use enums::bitpiece_enum;
+use heck::{ToSnakeCase, ToUpperCamelCase};
+use itertools::Itertools;
 use named_structs::bitpiece_named_struct;
-use syn::{parse_macro_input, DeriveInput, LitInt};
+use strum::{EnumString, VariantNames};
+use syn::{
+    parse::{Parse, ParseStream},
+    parse_macro_input,
+    punctuated::Punctuated,
+    token::Comma,
+    DeriveInput, LitInt,
+};
 use utils::{are_generics_empty, not_supported_err};
 
 /// an attribute for defining bitfields.
@@ -17,20 +28,126 @@ pub fn bitpiece(
     impl_bitpiece(args, input)
 }
 
+#[derive(EnumString, VariantNames, Hash, Clone, Copy, Debug, PartialEq, Eq)]
+enum OptIn {
+    Get,
+    Set,
+    GetNoShift,
+    GetMut,
+    MutStruct,
+}
+
+struct ExplicitBitLengthArg {
+    bit_length: usize,
+    lit: LitInt,
+}
+
+struct OptInArg {
+    opt_in: OptIn,
+    ident: syn::Ident,
+}
+
+enum MacroArg {
+    ExplicitBitLength(ExplicitBitLengthArg),
+    OptIn(OptInArg),
+}
+impl Parse for MacroArg {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let opt_in_names: String = OptIn::VARIANTS
+            .iter()
+            .map(|v| format!("`{}`", v.to_snake_case()))
+            .join(", ");
+        let unknown_macro_arg_err = format!(
+            "unknown macro argument, expected an integer bit-length (e.g. `32`) or an opt-in flag ({opt_in_names})"
+        );
+
+        // explicit bit length
+        if input.peek(LitInt) {
+            let lit: LitInt = input.parse()?;
+            return Ok(MacroArg::ExplicitBitLength(ExplicitBitLengthArg {
+                bit_length: lit.base10_parse()?,
+                lit,
+            }));
+        }
+
+        // opt ins as identifiers
+        if input.peek(syn::Ident) {
+            let ident: syn::Ident = input.parse()?;
+
+            let ident_pascal_case = ident.to_string().to_upper_camel_case();
+
+            let opt_in = OptIn::from_str(&ident_pascal_case)
+                .map_err(|_| syn::Error::new_spanned(&ident, unknown_macro_arg_err))?;
+
+            return Ok(MacroArg::OptIn(OptInArg { opt_in, ident }));
+        }
+
+        Err(input.error(unknown_macro_arg_err))
+    }
+}
+
+struct RawMacroArgs(Punctuated<MacroArg, Comma>);
+impl Parse for RawMacroArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Punctuated::<MacroArg, Comma>::parse_terminated(input).map(Self)
+    }
+}
+
+#[derive(Default)]
+struct MacroArgs {
+    explicit_bit_length: Option<usize>,
+    opt_ins: HashSet<OptIn>,
+}
+impl Parse for MacroArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let raw_args: RawMacroArgs = input.parse()?;
+
+        let mut explicit_bit_length_arg: Option<ExplicitBitLengthArg> = None;
+        let mut opt_ins_args: Vec<OptInArg> = Vec::new();
+        for arg in raw_args.0 {
+            match arg {
+                MacroArg::ExplicitBitLength(arg) => {
+                    if let Some(existing_arg) = explicit_bit_length_arg {
+                        let mut err = syn::Error::new_spanned(
+                            arg.lit,
+                            "found more than one explicit bit length argument but only one is allowed",
+                        );
+                        err.combine(syn::Error::new_spanned(
+                            existing_arg.lit,
+                            "conflicts with this previous explicit bit length argument",
+                        ));
+                        return Err(err);
+                    }
+                    explicit_bit_length_arg = Some(arg);
+                }
+                MacroArg::OptIn(arg) => {
+                    if let Some(existing_arg) = opt_ins_args
+                        .iter()
+                        .find(|existing_arg| existing_arg.opt_in == arg.opt_in)
+                    {
+                        let mut err = syn::Error::new_spanned(arg.ident, "duplicate opt in arg");
+                        err.combine(syn::Error::new_spanned(
+                            existing_arg.ident.clone(),
+                            "conflicts with this previous opt in arg",
+                        ));
+                        return Err(err);
+                    }
+                    opt_ins_args.push(arg);
+                }
+            }
+        }
+        Ok(MacroArgs {
+            explicit_bit_length: explicit_bit_length_arg.map(|arg| arg.bit_length),
+            opt_ins: opt_ins_args.iter().map(|arg| arg.opt_in).collect(),
+        })
+    }
+}
+
 fn impl_bitpiece(
     args_tokens: proc_macro::TokenStream,
     input_tokens: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let maybe_explicit_bit_length = parse_macro_input!(args_tokens as Option<LitInt>);
-    let explicit_bit_length: Option<usize> = match maybe_explicit_bit_length {
-        Some(bit_length) => match bit_length.base10_parse() {
-            Ok(parsed_bit_length) => Some(parsed_bit_length),
-            Err(err) => {
-                return err.into_compile_error().into();
-            }
-        },
-        None => None,
-    };
+    let macro_args = parse_macro_input!(args_tokens as MacroArgs);
     let input = parse_macro_input!(input_tokens as DeriveInput);
 
     if !are_generics_empty(&input.generics) {
@@ -39,13 +156,11 @@ fn impl_bitpiece(
 
     match &input.data {
         syn::Data::Struct(data_struct) => match &data_struct.fields {
-            syn::Fields::Named(fields) => {
-                bitpiece_named_struct(&input, fields, explicit_bit_length)
-            }
+            syn::Fields::Named(fields) => bitpiece_named_struct(&input, fields, macro_args),
             syn::Fields::Unnamed(_) => not_supported_err("unnamed structs"),
             syn::Fields::Unit => not_supported_err("empty structs"),
         },
-        syn::Data::Enum(data_enum) => bitpiece_enum(&input, data_enum, explicit_bit_length),
+        syn::Data::Enum(data_enum) => bitpiece_enum(&input, data_enum, macro_args),
         syn::Data::Union(_) => not_supported_err("unions"),
     }
 }

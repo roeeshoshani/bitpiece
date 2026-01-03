@@ -5,6 +5,7 @@ use syn::{DataEnum, DeriveInput, Fields};
 use crate::{
     newtypes::{BitLenExpr, TypeExpr},
     utils::{bitpiece_gen_impl, not_supported_err, BitPieceGenImplParams},
+    MacroArgs,
 };
 
 fn enum_variant_values<'a>(
@@ -95,7 +96,7 @@ fn gen_try_deserialization_code(
 pub fn bitpiece_enum(
     input: &DeriveInput,
     data_enum: &DataEnum,
-    explicit_bit_length: Option<usize>,
+    macro_args: MacroArgs,
 ) -> proc_macro::TokenStream {
     if data_enum
         .variants
@@ -105,7 +106,7 @@ pub fn bitpiece_enum(
         return not_supported_err("enum variants with data");
     }
 
-    let bit_len_calc = match explicit_bit_length {
+    let bit_len_calc = match macro_args.explicit_bit_length {
         Some(explicit_bit_len) => BitLenExpr(quote! {#explicit_bit_len}),
         None => BitLenExpr(enum_bit_len(&input.ident, data_enum)),
     };

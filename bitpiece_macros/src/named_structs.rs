@@ -8,12 +8,13 @@ use crate::{
         bitpiece_gen_impl, gen_explicit_bit_length_assertion, not_supported_err,
         BitPieceGenImplParams,
     },
+    MacroArgs,
 };
 
 pub fn bitpiece_named_struct(
     input: &DeriveInput,
     fields: &FieldsNamed,
-    explicit_bit_length: Option<usize>,
+    macro_args: MacroArgs,
 ) -> proc_macro::TokenStream {
     if fields.named.is_empty() {
         return not_supported_err("empty structs");
@@ -69,7 +70,7 @@ pub fn bitpiece_named_struct(
     let mut_struct_field_mut_fns = gen_mut_struct_field_mut_fns(fields);
 
     let explicit_bit_len_assertion =
-        gen_explicit_bit_length_assertion(explicit_bit_length, &bit_len);
+        gen_explicit_bit_length_assertion(macro_args.explicit_bit_length, &bit_len);
 
     let vis = &input.vis;
     let attrs = &input.attrs;
