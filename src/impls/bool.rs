@@ -43,7 +43,7 @@ impl BitPiece for bool {
     }
 }
 impl BitPieceHasMutRef for bool {
-    type Mut<'s> = BitPieceBoolMutRef<'s>;
+    type MutRef<'s> = BitPieceBoolMutRef<'s>;
 }
 impl BitPieceHasFields for bool {
     type Fields = bool;

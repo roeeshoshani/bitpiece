@@ -42,7 +42,7 @@ macro_rules! impl_bitpiece_for_unsigned_int_types {
                     }
                 }
                 impl BitPieceHasMutRef for [<u $bit_len>] {
-                    type Mut<'s> = [<BitPieceU $bit_len MutRef>]<'s>;
+                    type MutRef<'s> = [<BitPieceU $bit_len MutRef>]<'s>;
                 }
                 impl BitPieceHasFields for [<u $bit_len>] {
                     type Fields = Self;
@@ -103,7 +103,7 @@ macro_rules! impl_bitpiece_for_signed_int_types {
                     }
                 }
                 impl BitPieceHasMutRef for [<i $bit_len>] {
-                    type Mut<'s> = [<BitPieceI $bit_len MutRef>]<'s>;
+                    type MutRef<'s> = [<BitPieceI $bit_len MutRef>]<'s>;
                 }
                 impl BitPieceHasFields for [<i $bit_len>] {
                     type Fields = Self;

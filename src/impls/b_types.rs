@@ -32,7 +32,7 @@ macro_rules! define_b_type {
         }
 
         impl BitPieceHasMutRef for $ident {
-            type Mut<'s> = $mut_ref_ty_name<'s>;
+            type MutRef<'s> = $mut_ref_ty_name<'s>;
         }
         impl BitPieceHasFields for $ident {
             type Fields = Self;

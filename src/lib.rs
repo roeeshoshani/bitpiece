@@ -44,7 +44,7 @@ pub trait BitPiece: Copy {
 
 pub trait BitPieceHasMutRef: BitPiece {
     /// the type used to represent a mutable reference to this type inside another bitpiece.
-    type Mut<'s>: BitPieceMutRef<'s>;
+    type MutRef<'s>: BitPieceMutRef<'s>;
 }
 
 pub trait BitPieceHasFields: BitPiece {
