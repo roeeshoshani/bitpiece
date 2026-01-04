@@ -234,9 +234,12 @@ macro_rules! impl_exact_associated_storage {
 }
 impl_exact_associated_storage! { 8, 16, 32, 64 }
 
-/// calculate the bit length of the smallest type required to store that amount of bits. for example for bits lengths `0..8` this
+/// calculate the bit length of the smallest type required to store that amount of bits. for example for bits lengths `1..=8` this
 /// will return `8`.
 const fn exact_associated_storage_bit_length(bit_length: usize) -> usize {
+    if bit_length == 0 {
+        panic!("bit length can't be 0");
+    }
     let power_of_2 = bit_length.next_power_of_two();
     if power_of_2 < 8 {
         8
