@@ -35,7 +35,7 @@ macro_rules! bitpiece_check_do_for_each_value {
             let values_to_check = $crate::bitpiece_check_gen_values_to_check!{$t};
             // can't use qualified path for `const_for`, must instead import it, since the `const_for` macro calls itself
             // in a non-hygiene way inside of its body.
-            use $crate::const_for::const_for;
+            use $crate::const_for;
             const_for!(i in 0..values_to_check.len() => {
                 let $value_var_name = values_to_check[i];
                 $body
@@ -82,7 +82,7 @@ macro_rules! bitpiece_check_fields_impl {
 macro_rules! bitpiece_check_mut_impl {
     {$t: ty} => {
         const _: () = {
-            type _Mut = <$t as $crate::BitPieceHasMutRef>::Mut<'static, u8>;
+            type _Mut = <$t as $crate::BitPieceHasMutRef>::Mut<'static>;
         };
     };
 }
