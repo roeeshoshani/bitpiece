@@ -82,7 +82,7 @@ macro_rules! bitpiece_check_fields_impl {
 macro_rules! bitpiece_check_mut_impl {
     {$t: ty} => {
         const _: () = {
-            type _Mut = <$t as $crate::BitPieceHasMutRef>::Mut<'static>;
+            type _Mut = <$t as $crate::BitPieceHasMutRef>::MutRef<'static>;
         };
     };
 }
@@ -90,8 +90,11 @@ macro_rules! bitpiece_check_mut_impl {
 #[macro_export]
 macro_rules! bitpiece_check_full_impl {
     {$t: ty} => {
-        bitpiece_check_base_impl!{$t}
-        bitpiece_check_fields_impl!{$t}
-        bitpiece_check_mut_impl!{$t}
+        #[cfg(test)]
+        const _: () = {
+            bitpiece_check_base_impl!{$t}
+            bitpiece_check_fields_impl!{$t}
+            bitpiece_check_mut_impl!{$t}
+        };
     };
 }
