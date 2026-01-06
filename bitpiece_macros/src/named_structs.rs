@@ -130,7 +130,7 @@ fn gen_const_instantiation(
     fields_type: &TypeExpr,
     const_name: &str,
 ) -> proc_macro2::TokenStream {
-    let const_name_ident = format_ident!("{}", const_name);
+    let const_name_ident = syn::Ident::new(const_name, proc_macro2::Span::mixed_site());
     let instantiate_each_field = fields.named.iter().map(|f| {
         let field_ident = &f.ident;
         let field_type = &f.ty;
@@ -145,24 +145,23 @@ fn gen_const_instantiation(
     }
 }
 
-fn get_field_offset_const_ident(field: &Field) -> syn::Ident {
-    let field_name_const_case = field
-        .ident
-        .as_ref()
-        .unwrap()
+fn gen_field_const_value_ident(field: &Field, const_name: &str) -> syn::Ident {
+    let field_ident = field.ident.as_ref().unwrap();
+    let field_name_const_case = field_ident
         .to_string()
         .to_case(convert_case::Case::Constant);
-    format_ident!("{}_OFFSET", field_name_const_case)
+    syn::Ident::new(
+        &format!("{}_{}", field_name_const_case, const_name),
+        field_ident.span(),
+    )
+}
+
+fn get_field_offset_const_ident(field: &Field) -> syn::Ident {
+    gen_field_const_value_ident(field, "OFFSET")
 }
 
 fn get_field_len_const_ident(field: &Field) -> syn::Ident {
-    let field_name_const_case = field
-        .ident
-        .as_ref()
-        .unwrap()
-        .to_string()
-        .to_case(convert_case::Case::Constant);
-    format_ident!("{}_LEN", field_name_const_case)
+    gen_field_const_value_ident(field, "LEN")
 }
 
 fn get_field_offset(type_ident: &syn::Ident, field: &Field) -> BitOffsetExpr {
