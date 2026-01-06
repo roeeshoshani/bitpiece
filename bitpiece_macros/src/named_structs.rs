@@ -452,7 +452,7 @@ fn gen_mut_struct_field_access_fns(
             quote! {
                 #vis const fn #ident(&self) -> #ty {
                     <#ty as ::bitpiece::BitPiece>::Converter::from_bits(
-                        self.bits.get_bits(#offset, #len) as <#ty as ::bitpiece::BitPiece>::Bits
+                        self.0.get_bits(#offset, #len) as <#ty as ::bitpiece::BitPiece>::Bits
                     )
                 }
             }
@@ -477,7 +477,7 @@ fn gen_mut_struct_field_set_fns(
             quote! {
                 #vis const fn #set_ident(&mut self, new_value: #ty) {
                     let new_value_bits = <#ty as ::bitpiece::BitPiece>::Converter::to_bits(new_value);
-                    self.bits.set_bits(#offset, #len, new_value_bits as u64)
+                    self.0.set_bits(#offset, #len, new_value_bits as u64)
                 }
             }
         })
@@ -498,11 +498,11 @@ fn gen_mut_struct_field_mut_fns(
             let ty = &field.ty;
             let ident_mut = format_ident!("{}_mut", ident);
             let mut_ty = quote! {
-                <#ty as ::bitpiece::BitPieceHasMutRef>::MutRef<'s>
+                <#ty as ::bitpiece::BitPieceHasMutRef>::MutRef
             };
             quote! {
-                #vis const fn #ident_mut(&'s mut self) -> #mut_ty {
-                    #mut_ty::new(self.bits.storage, self.bits.start_bit_index + #offset)
+                #vis const fn #ident_mut(&'s mut self) -> #mut_ty<'s> {
+                    #mut_ty::new(self.0.storage.reborrow(), self.0.start_bit_index + #offset)
                 }
             }
         })
@@ -558,13 +558,13 @@ fn gen_field_mut_fns(
             let ident_mut = format_ident!("{}_mut", ident);
             let storage_type = storage_type.clone();
             let mut_ty = quote! {
-                <#ty as ::bitpiece::BitPieceHasMutRef>::MutRef<'s>
+                <#ty as ::bitpiece::BitPieceHasMutRef>::MutRef
             };
+            let storage_mut_ref =
+                storage_type.convert_mut_ref_to_storage_mut_ref(quote! { &mut self.storage });
             quote! {
-                #vis const fn #ident_mut<'s>(&'s mut self) -> #mut_ty {
-                    <
-                        #mut_ty as ::bitpiece::BitPieceMut<'s, #storage_type, #ty>
-                    >::new(&mut self.storage, #offset)
+                #vis const fn #ident_mut<'a>(&'a mut self) -> #mut_ty<'a> {
+                    #mut_ty::new(#storage_mut_ref, #offset)
                 }
             }
         })

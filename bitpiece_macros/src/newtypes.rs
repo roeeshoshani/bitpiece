@@ -34,7 +34,7 @@ impl TypeExpr {
     /// this is only valid if the type implements the `BitPiece` trait.
     pub fn fields_ty(&self) -> TypeExpr {
         TypeExpr(quote! {
-            <#self as ::bitpiece::BitPiece>::Fields
+            <#self as ::bitpiece::BitPieceHasFields>::Fields
         })
     }
 }

@@ -38,6 +38,15 @@ impl<'a> BitPieceStorageMutRef<'a> {
             BitPieceStorageMutRef::U8(x) => **x = new_value as u8,
         }
     }
+
+    pub const fn reborrow(&mut self) -> BitPieceStorageMutRef<'_> {
+        match self {
+            BitPieceStorageMutRef::U64(x) => BitPieceStorageMutRef::U64(x),
+            BitPieceStorageMutRef::U32(x) => BitPieceStorageMutRef::U32(x),
+            BitPieceStorageMutRef::U16(x) => BitPieceStorageMutRef::U16(x),
+            BitPieceStorageMutRef::U8(x) => BitPieceStorageMutRef::U8(x),
+        }
+    }
 }
 
 /// a convenience type for interacting with the bits of an underlying storage type, starting at a specific bit index.
