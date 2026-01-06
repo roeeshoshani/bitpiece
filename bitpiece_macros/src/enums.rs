@@ -55,7 +55,7 @@ fn enum_bit_len(enum_ident: &syn::Ident, data_enum: &DataEnum) -> proc_macro2::T
     }
 }
 
-fn gen_try_deserialization_code(
+fn gen_try_from_bits_code(
     enum_ident: &syn::Ident,
     data_enum: &DataEnum,
     storage_type: &TypeExpr,
@@ -128,18 +128,18 @@ pub fn bitpiece_enum(
 
     let implementation = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: input.ident.clone(),
-        mut_type: quote! { ::bitpiece::GenericBitPieceMut<'s, S, Self> },
-        serialization_code: quote! { self as #storage_type },
-        try_deserialization_code: Some(gen_try_deserialization_code(
-            &input.ident,
-            data_enum,
-            &storage_type,
-        )),
+        mut_type_ident: quote! { ::bitpiece::GenericBitPieceMut<'s, S, Self> },
+        to_bits_code: quote! { self as #storage_type },
+        try_from_bits_code: gen_try_from_bits_code(&input.ident, data_enum, &storage_type),
         fields_type: TypeExpr(quote! { Self }),
         to_fields_code: quote! { self },
         from_fields_code: quote! { fields },
         storage_type,
         bit_len,
+        zeroes: todo!(),
+        ones: todo!(),
+        min: todo!(),
+        max: todo!(),
     });
 
     let vis = &input.vis;

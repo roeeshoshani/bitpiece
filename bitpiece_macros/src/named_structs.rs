@@ -11,6 +11,8 @@ use crate::{
     MacroArgs,
 };
 
+fn gen_const_instance_from_fields(fields: &FieldsNamed, const_name: &str) {}
+
 pub fn bitpiece_named_struct(
     input: &DeriveInput,
     fields: &FieldsNamed,
@@ -46,19 +48,25 @@ pub fn bitpiece_named_struct(
     let fields_struct_ident = format_ident!("{}Fields", input.ident);
     let fields_struct_modified_fields = gen_fields_struct_modified_fields(fields);
 
-    let ident_mut = format_ident!("{}Mut", input.ident);
+    let mut_type_ident = format_ident!("{}Mut", input.ident);
+    let fields_type = TypeExpr(quote! { #fields_struct_ident });
+
     let bitpiece_impl = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: input.ident.clone(),
         bit_len: bit_len.clone(),
         storage_type: storage_type.clone(),
-        serialization_code: quote! { self.storage },
-        try_deserialization_code: Some(gen_try_deserialization_code(fields, &storage_type)),
-        mut_type: quote! { #ident_mut<'s, S> },
-        fields_type: TypeExpr(quote! { #fields_struct_ident }),
+        to_bits_code: quote! { self.storage },
+        try_from_bits_code: gen_try_from_bits_code(fields, &storage_type),
+        mut_type_ident,
+        fields_type,
         to_fields_code: gen_to_fields(fields, &fields_struct_ident),
         from_fields_code: gen_from_fields(fields, input),
+        zeroes: todo!(),
+        ones: todo!(),
+        min: todo!(),
+        max: todo!(),
     });
-    let bitpiece_mut_impl = bitpiece_mut_gen_impl(&ident_mut, &input.ident);
+    let bitpiece_mut_impl = bitpiece_mut_gen_impl(&mut_type_ident, &input.ident);
 
     let field_access_fns = gen_field_access_fns(fields, &storage_type);
     let field_access_noshift_fns = gen_field_access_noshift_fns(fields, &storage_type);
@@ -95,13 +103,13 @@ pub fn bitpiece_named_struct(
             #(#field_mut_fns)*
         }
 
-        #vis struct #ident_mut<'s, S: ::bitpiece::BitStorage> {
+        #vis struct #mut_type_ident<'s, S: ::bitpiece::BitStorage> {
             bits: ::bitpiece::BitsMut<'s, S>,
         }
 
         #bitpiece_mut_impl
 
-        impl<'s, S: ::bitpiece::BitStorage> #ident_mut<'s, S> {
+        impl<'s, S: ::bitpiece::BitStorage> #mut_type_ident<'s, S> {
             #(#mut_struct_field_access_fns)*
             #(#mut_struct_field_set_fns)*
             #(#mut_struct_field_mut_fns)*
@@ -270,7 +278,7 @@ fn gen_from_fields<'a>(fields: &'a FieldsNamed, input: &DeriveInput) -> proc_mac
     }
 }
 
-fn gen_try_deserialization_code(
+fn gen_try_from_bits_code(
     fields: &FieldsNamed,
     storage_type: &TypeExpr,
 ) -> proc_macro2::TokenStream {

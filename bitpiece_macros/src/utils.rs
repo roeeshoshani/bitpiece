@@ -43,7 +43,7 @@ pub struct BitPieceGenImplParams {
     pub type_ident: syn::Ident,
 
     /// the mutable bit access type.
-    pub mut_type: proc_macro2::TokenStream,
+    pub mut_type_ident: syn::Ident,
 
     /// the bit length of the type.
     pub bit_len: BitLenExpr,
@@ -63,54 +63,96 @@ pub struct BitPieceGenImplParams {
     /// this will be used as the body of the `from_fields` method.
     pub from_fields_code: proc_macro2::TokenStream,
 
-    /// code for serializing this type.
+    /// code converting this type to its raw bits.
     /// this will be used as the body of the `to_bits` method.
-    pub serialization_code: proc_macro2::TokenStream,
+    pub to_bits_code: proc_macro2::TokenStream,
 
-    /// code for trying to deserialize this type.
+    /// code for constructing this type from its raw bits.
     /// this will be used as the body of the `try_from_bits` method.
-    pub try_deserialization_code: Option<proc_macro2::TokenStream>,
+    pub try_from_bits_code: proc_macro2::TokenStream,
+
+    /// an instantiation of this type with all bits sets to zero (if possible).
+    pub zeroes: proc_macro2::TokenStream,
+
+    /// an instantiation of this type with all bits sets to one (if possible).
+    pub ones: proc_macro2::TokenStream,
+
+    /// an instantiation of this type with the min possible value.
+    pub min: proc_macro2::TokenStream,
+
+    /// an instantiation of this type with the max possible value.
+    pub max: proc_macro2::TokenStream,
 }
 
 /// generates the final implementation of the `BitPiece` trait given the implementation details.
 pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStream {
     let BitPieceGenImplParams {
         type_ident,
-        mut_type,
+        mut_type_ident,
         bit_len,
         fields_type,
         storage_type,
         to_fields_code,
         from_fields_code,
-        serialization_code,
-        try_deserialization_code,
+        to_bits_code,
+        try_from_bits_code,
+        zeroes,
+        ones,
+        min,
+        max,
     } = params;
-    let try_from_bits_fn = match try_deserialization_code {
-        Some(try_deserialization_code) => {
-            quote! {
-                fn try_from_bits(bits: Self::Bits) -> Option<Self> {
-                    #try_deserialization_code
-                }
-            }
-        }
-        None => quote! {},
-    };
     quote! {
         #[automatically_derived]
         impl ::bitpiece::BitPiece for #type_ident {
             const BITS: usize = (#bit_len);
+            const ZEROES: Self = #zeroes;
+            const ONES: Self = #ones;
+            const MIN: Self = #min;
+            const MAX: Self = #max;
             type Bits = #storage_type;
+            type Converter = Self;
+            fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+                Self::try_from_bits(bits)
+            }
+            fn from_bits(bits: Self::Bits) -> Self {
+                Self::from_bits(bits)
+            }
+            fn to_bits(self) -> Self::Bits {
+                self.to_bits()
+            }
+        }
+
+        #[automatically_derived]
+        impl ::bitpiece::BitPieceHasMutRef for #type_ident {
+            type MutRef<'s> = #mut_type_ident<'s>;
+        }
+
+        #[automatically_derived]
+        impl ::bitpiece::BitPieceHasFields for #type_ident {
             type Fields = #fields_type;
-            type MutRef<'s, S: ::bitpiece::BitStorage + 's> = #mut_type;
             fn from_fields(fields: Self::Fields) -> Self {
-                #from_fields_code
+                Self::from_fields(fields)
             }
             fn to_fields(self) -> Self::Fields {
+                self.to_fields()
+            }
+        }
+
+        impl #type_ident {
+            pub const fn from_fields(fields: #fields_type) -> Self {
+                #from_fields_code
+            }
+            pub const fn to_fields(self) -> #fields_type {
                 #to_fields_code
             }
-            #try_from_bits_fn
-            fn to_bits(self) -> Self::Bits {
-                #serialization_code
+            pub const fn try_from_bits(bits: #storage_type) -> Option<Self> {
+                #try_from_bits_code
+            }
+            pub const fn from_bits(bits: #storage_type) -> Self {
+                Self::try_from_bits(bits).unwrap()
+            }
+            pub const fn to_bits(self) -> #storage_type {
+                #to_bits_code
             }
         }
     }
