@@ -96,19 +96,19 @@ pub trait BitPieceMutRef<'s> {
 
 #[macro_export]
 macro_rules! bitpiece_define_mut_ref_type {
-    {$t: ty, $mut_ref_ty_name: ident} => {
-        pub struct $mut_ref_ty_name<'s>(pub $crate::BitsMut<'s>);
+    {$t: ty, $mut_ref_ty_name: ident, $vis: vis} => {
+        $vis struct $mut_ref_ty_name<'s>(pub $crate::BitsMut<'s>);
         impl<'s> $mut_ref_ty_name<'s> {
             pub const fn new(storage: $crate::BitPieceStorageMutRef<'s>, start_bit_index: usize) -> Self {
                 Self($crate::BitsMut::new(storage, start_bit_index))
             }
 
-            pub const fn get(&self) -> $t {
+            $vis const fn get(&self) -> $t {
                 let bits = self.0.get_bits(0, <$t as $crate::BitPiece>::BITS) as <$t as $crate::BitPiece>::Bits;
                 <$t as $crate::BitPiece>::Converter::from_bits(bits)
             }
 
-            pub const fn set(&mut self, new_value: $t) {
+            $vis const fn set(&mut self, new_value: $t) {
                 let bits = <$t as $crate::BitPiece>::Converter::to_bits(new_value);
                 self.0
                     .set_bits(0, <$t as $crate::BitPiece>::BITS, bits as u64);

@@ -59,7 +59,7 @@ macro_rules! impl_bitpiece_for_unsigned_int_types {
                     }
                 }
                 bitpiece_check_full_impl! { [<u $bit_len>] }
-                bitpiece_define_mut_ref_type! { [<u $bit_len>], [<BitPieceU $bit_len MutRef>]}
+                bitpiece_define_mut_ref_type! { [<u $bit_len>], [<BitPieceU $bit_len MutRef>], pub }
             }
         )+
     };
@@ -122,7 +122,7 @@ macro_rules! impl_bitpiece_for_signed_int_types {
                     }
                 }
                 bitpiece_check_full_impl! { [<i $bit_len>] }
-                bitpiece_define_mut_ref_type! { [<i $bit_len>], [<BitPieceI $bit_len MutRef>]}
+                bitpiece_define_mut_ref_type! { [<i $bit_len>], [<BitPieceI $bit_len MutRef>], pub }
             }
         )+
     };

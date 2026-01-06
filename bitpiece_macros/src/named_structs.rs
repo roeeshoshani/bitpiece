@@ -99,7 +99,7 @@ pub fn bitpiece_named_struct(
             #field_mut_fns
         }
 
-        ::bitpiece::bitpiece_define_mut_ref_type! { #ident, #mut_type_ident }
+        ::bitpiece::bitpiece_define_mut_ref_type! { #ident, #mut_type_ident, #vis }
 
         impl<'s> #mut_type_ident<'s> {
             #mut_struct_field_access_fns
@@ -208,8 +208,8 @@ fn gen_fields_offsets_and_lens_consts(
             };
             let len = TypeExpr::from_type(&cur.ty).bit_len();
             quote! {
-                const #len_const_ident: usize = #len;
-                const #offset_const_ident: usize = #offset;
+                pub const #len_const_ident: usize = #len;
+                pub const #offset_const_ident: usize = #offset;
             }
         })
         .collect()

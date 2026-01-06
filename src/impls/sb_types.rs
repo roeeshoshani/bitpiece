@@ -125,7 +125,7 @@ macro_rules! define_sb_type {
             }
         }
         bitpiece_check_full_impl! { $ident }
-        bitpiece_define_mut_ref_type! { $ident, $mut_ref_ty_name }
+        bitpiece_define_mut_ref_type! { $ident, $mut_ref_ty_name, pub }
     };
 }
 macro_rules! define_sb_types {
