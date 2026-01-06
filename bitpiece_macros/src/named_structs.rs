@@ -314,9 +314,7 @@ fn extract_bits_noshift(params: ExtractBitsParams) -> proc_macro2::TokenStream {
         extract_len,
     } = &params;
     quote! {
-        (
-            ::bitpiece::extract_bits_noshift(#value as u64, #extract_offset, #extract_len) as #value_type
-        )
+        ::bitpiece::extract_bits_noshift(#value as u64, #extract_offset, #extract_len) as #value_type
     }
 }
 
@@ -333,9 +331,7 @@ fn modify_bits(params: ModifyBitsParams) -> proc_macro2::TokenStream {
         new_value,
     } = params;
     quote! {
-        (
-            ::bitpiece::modify_bits(#value as u64, #extract_offset, #extract_len, #new_value as u64) as #value_type
-        )
+        ::bitpiece::modify_bits(#value as u64, #extract_offset, #extract_len, #new_value as u64) as #value_type
     }
 }
 
