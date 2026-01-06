@@ -128,7 +128,7 @@ pub fn bitpiece_enum(
 
     let implementation = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: input.ident.clone(),
-        mut_type_ident: quote! { ::bitpiece::GenericBitPieceMut<'s, S, Self> },
+        mut_type_ident: todo!(),
         to_bits_code: quote! { self as #storage_type },
         try_from_bits_code: gen_try_from_bits_code(&input.ident, data_enum, &storage_type),
         fields_type: TypeExpr(quote! { Self }),
