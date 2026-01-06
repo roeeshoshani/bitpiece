@@ -57,4 +57,4 @@ impl BitPieceHasFields for bool {
     }
 }
 bitpiece_check_full_impl! { bool }
-bitpiece_define_mut_ref_type! {bool, BitPieceBoolMutRef, pub }
+bitpiece_define_mut_ref_type! { bool, BitPieceBoolMutRef, pub }
