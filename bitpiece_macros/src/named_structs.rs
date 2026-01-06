@@ -83,7 +83,7 @@ pub fn bitpiece_named_struct(
         #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
         #[repr(transparent)]
         #vis struct #ident {
-            storage: #storage_type,
+            pub storage: #storage_type,
         }
 
         #bitpiece_impl
