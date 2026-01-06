@@ -350,7 +350,7 @@ fn gen_from_fields<'a>(fields: &'a FieldsNamed, input: &DeriveInput) -> proc_mac
         }
     });
     quote! {
-        let mut result = <#ident as ::bitpiece::BitPiece>::ZEROES;
+        let mut result = #ident::from_bits(0);
         #(#field_set_calls)*
         result
     }
