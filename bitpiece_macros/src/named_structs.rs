@@ -109,12 +109,12 @@ pub fn bitpiece_named_struct(
 
         impl ::core::convert::From<#fields_struct_ident> for #ident {
             fn from(fields: #fields_struct_ident) -> Self {
-                <Self as ::bitpiece::BitPiece>::from_fields(fields)
+                Self::from_fields(fields)
             }
         }
         impl ::core::convert::From<#ident> for #fields_struct_ident {
             fn from(value: #ident) -> Self {
-                <#ident as ::bitpiece::BitPiece>::to_fields(value)
+                value.to_fields()
             }
         }
 
@@ -344,12 +344,13 @@ fn gen_from_fields<'a>(fields: &'a FieldsNamed, input: &DeriveInput) -> proc_mac
     let field_set_calls = fields.named.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
         let field_set_fn_ident = format_ident!("set_{}", field_ident);
+        let field_ty = &field.ty;
         quote! {
-            result.#field_set_fn_ident(::bitpiece::BitPiece::from_fields(fields.#field_ident));
+            result.#field_set_fn_ident(<#field_ty as ::bitpiece::BitPiece>::Converter::from_fields(fields.#field_ident));
         }
     });
     quote! {
-        let mut result = #ident::zeroes();
+        let mut result = <#ident as ::bitpiece::BitPiece>::ZEROES;
         #(#field_set_calls)*
         result
     }
@@ -366,7 +367,9 @@ fn gen_try_from_bits_code(
         .map(|(bits, field)| {
             let ty = &field.ty;
             quote! {
-                let _ = <#ty as ::bitpiece::BitPiece>::try_from_bits(#bits as <#ty as ::bitpiece::BitPiece>::Bits)?;
+                if <#ty as ::bitpiece::BitPiece>::Converter::try_from_bits(#bits as <#ty as ::bitpiece::BitPiece>::Bits).is_none() {
+                    return None;
+                }
             }
         });
     quote! {
@@ -382,8 +385,9 @@ fn gen_to_fields<'a>(
 ) -> proc_macro2::TokenStream {
     let field_initializers = fields.named.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
+        let field_ty = &field.ty;
         quote! {
-            #field_ident: ::bitpiece::BitPiece::to_fields(self.#field_ident()),
+            #field_ident: <#field_ty as ::bitpiece::BitPiece>::Converter::to_fields(self.#field_ident()),
         }
     });
     quote! {
@@ -406,7 +410,7 @@ fn gen_field_access_fns(
             let ty = &field.ty;
             quote! {
                 #vis const fn #ident (self) -> #ty {
-                    <#ty as ::bitpiece::BitPiece>::from_bits(#bits as <#ty as ::bitpiece::BitPiece>::Bits)
+                    <#ty as ::bitpiece::BitPiece>::Converter::from_bits(#bits as <#ty as ::bitpiece::BitPiece>::Bits)
                 }
             }
         }).collect()
@@ -447,7 +451,7 @@ fn gen_mut_struct_field_access_fns(
             let ty = &field.ty;
             quote! {
                 #vis const fn #ident(&self) -> #ty {
-                    <#ty as ::bitpiece::BitPiece>::from_bits(
+                    <#ty as ::bitpiece::BitPiece>::Converter::from_bits(
                         self.bits.get_bits(#offset, #len) as <#ty as ::bitpiece::BitPiece>::Bits
                     )
                 }
@@ -472,7 +476,7 @@ fn gen_mut_struct_field_set_fns(
             let set_ident = format_ident!("set_{}", ident);
             quote! {
                 #vis const fn #set_ident(&mut self, new_value: #ty) {
-                    let new_value_bits = <#ty as ::bitpiece::BitPiece>::to_bits(new_value);
+                    let new_value_bits = <#ty as ::bitpiece::BitPiece>::Converter::to_bits(new_value);
                     self.bits.set_bits(#offset, #len, new_value_bits as u64)
                 }
             }
