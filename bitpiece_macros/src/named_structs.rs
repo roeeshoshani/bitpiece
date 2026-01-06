@@ -11,7 +11,26 @@ use crate::{
     MacroArgs,
 };
 
-fn gen_const_instance_from_fields(fields: &FieldsNamed, const_name: &str) {}
+fn gen_const_instance_from_fields(
+    ident: &syn::Ident,
+    fields: &FieldsNamed,
+    fields_type: &TypeExpr,
+    const_name: &str,
+) -> proc_macro2::TokenStream {
+    let const_name_ident = format_ident!("{}", const_name);
+    let instantiate_each_field = fields.named.iter().map(|f| {
+        let field_ident = &f.ident;
+        let field_type = &f.ty;
+        quote! {
+            #field_ident: <#field_type as ::bitpiece::BitPiece>::#const_name_ident,
+        }
+    });
+    quote! {
+        #ident::from_fields(#fields_type {
+            #(#instantiate_each_field)*
+        })
+    }
+}
 
 pub fn bitpiece_named_struct(
     input: &DeriveInput,
@@ -57,14 +76,14 @@ pub fn bitpiece_named_struct(
         storage_type: storage_type.clone(),
         to_bits_code: quote! { self.storage },
         try_from_bits_code: gen_try_from_bits_code(fields, &storage_type),
-        mut_type_ident,
-        fields_type,
+        mut_type_ident: mut_type_ident.clone(),
+        zeroes: gen_const_instance_from_fields(ident, fields, &fields_type, "ZEROES"),
+        ones: gen_const_instance_from_fields(ident, fields, &fields_type, "ONES"),
+        min: gen_const_instance_from_fields(ident, fields, &fields_type, "MIN"),
+        max: gen_const_instance_from_fields(ident, fields, &fields_type, "MAX"),
         to_fields_code: gen_to_fields(fields, &fields_struct_ident),
         from_fields_code: gen_from_fields(fields, input),
-        zeroes: todo!(),
-        ones: todo!(),
-        min: todo!(),
-        max: todo!(),
+        fields_type,
     });
     let bitpiece_mut_impl = bitpiece_mut_gen_impl(&mut_type_ident, &input.ident);
 
