@@ -11,106 +11,6 @@ use crate::{
     MacroArgs,
 };
 
-fn gen_const_instantiation(
-    type_ident: &syn::Ident,
-    fields: &FieldsNamed,
-    fields_type: &TypeExpr,
-    const_name: &str,
-) -> proc_macro2::TokenStream {
-    let const_name_ident = format_ident!("{}", const_name);
-    let instantiate_each_field = fields.named.iter().map(|f| {
-        let field_ident = &f.ident;
-        let field_type = &f.ty;
-        quote! {
-            #field_ident: <#field_type as ::bitpiece::BitPiece>::#const_name_ident,
-        }
-    });
-    quote! {
-        #type_ident::from_fields(#fields_type {
-            #(#instantiate_each_field)*
-        })
-    }
-}
-
-fn get_field_offset_const_ident(field: &Field) -> syn::Ident {
-    let field_name_const_case = field
-        .ident
-        .as_ref()
-        .unwrap()
-        .to_string()
-        .to_case(convert_case::Case::Constant);
-    format_ident!("{}_OFFSET", field_name_const_case)
-}
-
-fn get_field_len_const_ident(field: &Field) -> syn::Ident {
-    let field_name_const_case = field
-        .ident
-        .as_ref()
-        .unwrap()
-        .to_string()
-        .to_case(convert_case::Case::Constant);
-    format_ident!("{}_LEN", field_name_const_case)
-}
-
-fn get_field_offset(type_ident: &syn::Ident, field: &Field) -> BitOffsetExpr {
-    let const_ident = get_field_offset_const_ident(field);
-    BitOffsetExpr(quote! {
-        #type_ident::#const_ident
-    })
-}
-
-fn get_field_len(type_ident: &syn::Ident, field: &Field) -> BitLenExpr {
-    let const_ident = get_field_len_const_ident(field);
-    BitLenExpr(quote! {
-        #type_ident::#const_ident
-    })
-}
-
-fn gen_fields_offsets_and_lens_consts(
-    type_ident: &syn::Ident,
-    fields: &FieldsNamed,
-) -> proc_macro2::TokenStream {
-    // iterator over each fields and its previous field. in the first iteration, the previous fields is `None`.
-    let fields_with_prev = fields.named.iter().enumerate().map(|(i, field)| {
-        let prev = if i == 0 {
-            None
-        } else {
-            Some(&fields.named[i - 1])
-        };
-        (prev, field)
-    });
-
-    fields_with_prev
-        .map(|(prev, cur)| {
-            let offset_const_ident = get_field_offset_const_ident(cur);
-            let len_const_ident = get_field_len_const_ident(cur);
-            let offset = match prev {
-                Some(prev) => {
-                    let prev_offset = get_field_offset(type_ident, prev);
-                    let prev_len = get_field_len(type_ident, prev);
-                    quote! {
-                        (#prev_offset) + (#prev_len)
-                    }
-                }
-                None => quote! { 0 },
-            };
-            let len = TypeExpr::from_type(&cur.ty).bit_len();
-            quote! {
-                const #len_const_ident: usize = #len;
-                const #offset_const_ident: usize = #offset;
-            }
-        })
-        .collect()
-}
-
-fn calc_bit_len(fields: &FieldsNamed) -> BitLenExpr {
-    let field_types = fields
-        .named
-        .iter()
-        .map(|field| TypeExpr::from_type(&field.ty));
-    field_types.clone().map(|field_ty| field_ty.bit_len()).sum()
-}
-
 pub fn bitpiece_named_struct(
     input: &DeriveInput,
     fields: &FieldsNamed,
@@ -222,6 +122,106 @@ pub fn bitpiece_named_struct(
         #vis struct #fields_struct_ident #fields_struct_modified_fields
     }
     .into()
+}
+
+fn gen_const_instantiation(
+    type_ident: &syn::Ident,
+    fields: &FieldsNamed,
+    fields_type: &TypeExpr,
+    const_name: &str,
+) -> proc_macro2::TokenStream {
+    let const_name_ident = format_ident!("{}", const_name);
+    let instantiate_each_field = fields.named.iter().map(|f| {
+        let field_ident = &f.ident;
+        let field_type = &f.ty;
+        quote! {
+            #field_ident: <#field_type as ::bitpiece::BitPiece>::#const_name_ident,
+        }
+    });
+    quote! {
+        #type_ident::from_fields(#fields_type {
+            #(#instantiate_each_field)*
+        })
+    }
+}
+
+fn get_field_offset_const_ident(field: &Field) -> syn::Ident {
+    let field_name_const_case = field
+        .ident
+        .as_ref()
+        .unwrap()
+        .to_string()
+        .to_case(convert_case::Case::Constant);
+    format_ident!("{}_OFFSET", field_name_const_case)
+}
+
+fn get_field_len_const_ident(field: &Field) -> syn::Ident {
+    let field_name_const_case = field
+        .ident
+        .as_ref()
+        .unwrap()
+        .to_string()
+        .to_case(convert_case::Case::Constant);
+    format_ident!("{}_LEN", field_name_const_case)
+}
+
+fn get_field_offset(type_ident: &syn::Ident, field: &Field) -> BitOffsetExpr {
+    let const_ident = get_field_offset_const_ident(field);
+    BitOffsetExpr(quote! {
+        #type_ident::#const_ident
+    })
+}
+
+fn get_field_len(type_ident: &syn::Ident, field: &Field) -> BitLenExpr {
+    let const_ident = get_field_len_const_ident(field);
+    BitLenExpr(quote! {
+        #type_ident::#const_ident
+    })
+}
+
+fn gen_fields_offsets_and_lens_consts(
+    type_ident: &syn::Ident,
+    fields: &FieldsNamed,
+) -> proc_macro2::TokenStream {
+    // iterator over each fields and its previous field. in the first iteration, the previous fields is `None`.
+    let fields_with_prev = fields.named.iter().enumerate().map(|(i, field)| {
+        let prev = if i == 0 {
+            None
+        } else {
+            Some(&fields.named[i - 1])
+        };
+        (prev, field)
+    });
+
+    fields_with_prev
+        .map(|(prev, cur)| {
+            let offset_const_ident = get_field_offset_const_ident(cur);
+            let len_const_ident = get_field_len_const_ident(cur);
+            let offset = match prev {
+                Some(prev) => {
+                    let prev_offset = get_field_offset(type_ident, prev);
+                    let prev_len = get_field_len(type_ident, prev);
+                    quote! {
+                        (#prev_offset) + (#prev_len)
+                    }
+                }
+                None => quote! { 0 },
+            };
+            let len = TypeExpr::from_type(&cur.ty).bit_len();
+            quote! {
+                const #len_const_ident: usize = #len;
+                const #offset_const_ident: usize = #offset;
+            }
+        })
+        .collect()
+}
+
+fn calc_bit_len(fields: &FieldsNamed) -> BitLenExpr {
+    let field_types = fields
+        .named
+        .iter()
+        .map(|field| TypeExpr::from_type(&field.ty));
+    field_types.clone().map(|field_ty| field_ty.bit_len()).sum()
 }
 
 fn gen_fields_struct_modified_fields(fields: &FieldsNamed) -> FieldsNamed {
