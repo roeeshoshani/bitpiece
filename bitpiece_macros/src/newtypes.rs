@@ -39,6 +39,21 @@ impl TypeExpr {
     }
 }
 
+/// an expression representing a bitpiece storage type.
+#[derive(Clone)]
+pub struct StorageTypeExpr(pub proc_macro2::TokenStream);
+impl_to_tokens_for_newtype! {StorageTypeExpr}
+impl StorageTypeExpr {
+    pub fn convert_mut_ref_to_storage_mut_ref(
+        &self,
+        mut_ref: proc_macro2::TokenStream,
+    ) -> proc_macro2::TokenStream {
+        quote! {
+            <#self as ::bitpiece::BitPiece>::Converter::to_storage_mut_ref(#mut_ref)
+        }
+    }
+}
+
 /// an expression for the bit length of some type.
 #[derive(Clone)]
 pub struct BitLenExpr(pub proc_macro2::TokenStream);

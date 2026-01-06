@@ -3,7 +3,7 @@ use quote::{format_ident, quote, ToTokens};
 use syn::{parse_quote, DeriveInput, Field, FieldsNamed};
 
 use crate::{
-    newtypes::{BitLenExpr, BitOffsetExpr, TypeExpr},
+    newtypes::{BitLenExpr, BitOffsetExpr, StorageTypeExpr, TypeExpr},
     utils::{
         bitpiece_gen_impl, gen_explicit_bit_length_assertion, not_supported_err,
         BitPieceGenImplParams,
@@ -137,12 +137,12 @@ pub fn bitpiece_named_struct(
 
     let storage_type_calc = bit_len.storage_type();
     let storage_type_ident = format_ident!("{}StorageTy", input.ident);
-    let storage_type = TypeExpr(storage_type_ident.to_token_stream());
+    let storage_type = StorageTypeExpr(storage_type_ident.to_token_stream());
 
     let fields_struct_ident = format_ident!("{}Fields", input.ident);
     let fields_struct_modified_fields = gen_fields_struct_modified_fields(fields);
 
-    let mut_type_ident = format_ident!("{}Mut", input.ident);
+    let mut_type_ident = format_ident!("{}MutRef", input.ident);
     let fields_type = TypeExpr(quote! { #fields_struct_ident });
 
     let fields_offsets_and_lens_consts = gen_fields_offsets_and_lens_consts(ident, fields);
@@ -162,7 +162,6 @@ pub fn bitpiece_named_struct(
         from_fields_code: gen_from_fields(fields, input),
         fields_type,
     });
-    let bitpiece_mut_impl = bitpiece_mut_gen_impl(&mut_type_ident, &input.ident);
 
     let field_access_fns = gen_field_access_fns(ident, fields, &storage_type);
     let field_access_noshift_fns = gen_field_access_noshift_fns(ident, fields, &storage_type);
@@ -200,13 +199,9 @@ pub fn bitpiece_named_struct(
             #field_mut_fns
         }
 
-        #vis struct #mut_type_ident<'s, S: ::bitpiece::BitStorage> {
-            bits: ::bitpiece::BitsMut<'s, S>,
-        }
+        ::bitpiece::bitpiece_define_mut_ref_type! { #ident, #mut_type_ident }
 
-        #bitpiece_mut_impl
-
-        impl<'s, S: ::bitpiece::BitStorage> #mut_type_ident<'s, S> {
+        impl<'s> #mut_type_ident<'s> {
             #mut_struct_field_access_fns
             #mut_struct_field_set_fns
             #mut_struct_field_mut_fns
@@ -229,7 +224,7 @@ pub fn bitpiece_named_struct(
     .into()
 }
 
-fn gen_fields_struct_modified_fields<'a>(fields: &'a FieldsNamed) -> FieldsNamed {
+fn gen_fields_struct_modified_fields(fields: &FieldsNamed) -> FieldsNamed {
     let mut modified_fields = fields.clone();
     for field in &mut modified_fields.named {
         let ty = &field.ty;
@@ -243,7 +238,7 @@ fn gen_fields_struct_modified_fields<'a>(fields: &'a FieldsNamed) -> FieldsNamed
 fn fields_extracted_bits<'a>(
     type_ident: &'a syn::Ident,
     fields: &'a FieldsNamed,
-    storage_type: &'a TypeExpr,
+    storage_type: &'a StorageTypeExpr,
     storage_bits_expr: proc_macro2::TokenStream,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields.named.iter().map(move |field| {
@@ -262,7 +257,7 @@ fn fields_extracted_bits<'a>(
 fn fields_extracted_bits_noshift<'a>(
     type_ident: &'a syn::Ident,
     fields: &'a FieldsNamed,
-    storage_type: &'a TypeExpr,
+    storage_type: &'a StorageTypeExpr,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     fields.named.iter().map(move |field| {
         let len = get_field_len(type_ident, field);
@@ -281,7 +276,7 @@ struct ExtractBitsParams {
     /// the value to extract the bits from
     value: proc_macro2::TokenStream,
     /// the type of the value to extract the bits from
-    value_type: TypeExpr,
+    value_type: StorageTypeExpr,
     /// the offset at which to start extracting
     extract_offset: BitOffsetExpr,
     /// the amount of bits to extract
@@ -364,7 +359,7 @@ fn gen_from_fields<'a>(fields: &'a FieldsNamed, input: &DeriveInput) -> proc_mac
 fn gen_try_from_bits_code(
     type_ident: &syn::Ident,
     fields: &FieldsNamed,
-    storage_type: &TypeExpr,
+    storage_type: &StorageTypeExpr,
 ) -> proc_macro2::TokenStream {
     // before constructing the type, make sure that the values of all fields are valid
     let per_field_call = fields_extracted_bits(type_ident, fields, storage_type, quote! { bits })
@@ -402,7 +397,7 @@ fn gen_to_fields<'a>(
 fn gen_field_access_fns(
     type_ident: &syn::Ident,
     fields: &FieldsNamed,
-    storage_type: &TypeExpr,
+    storage_type: &StorageTypeExpr,
 ) -> proc_macro2::TokenStream {
     fields_extracted_bits(type_ident, fields, storage_type, quote!{ self.storage })
         .zip(fields.named.iter())
@@ -421,7 +416,7 @@ fn gen_field_access_fns(
 fn gen_field_access_noshift_fns(
     type_ident: &syn::Ident,
     fields: &FieldsNamed,
-    storage_type: &TypeExpr,
+    storage_type: &StorageTypeExpr,
 ) -> proc_macro2::TokenStream {
     fields_extracted_bits_noshift(type_ident, fields, storage_type)
         .zip(fields.named.iter())
@@ -500,13 +495,11 @@ fn gen_mut_struct_field_mut_fns(
             let ty = &field.ty;
             let ident_mut = format_ident!("{}_mut", ident);
             let mut_ty = quote! {
-                <#ty as ::bitpiece::BitPiece>::Mut<'s, S>
+                <#ty as ::bitpiece::BitPieceHasMutRef>::MutRef<'s>
             };
             quote! {
-                #vis const fn #ident_mut<'a: 's>(&'a mut self) -> #mut_ty {
-                    <
-                        #mut_ty as ::bitpiece::BitPieceMut<'s, S, #ty>
-                    >::new(self.bits.storage, self.bits.start_bit_index + #offset)
+                #vis const fn #ident_mut(&'s mut self) -> #mut_ty {
+                    #mut_ty::new(self.bits.storage, self.bits.start_bit_index + #offset)
                 }
             }
         })
@@ -516,7 +509,7 @@ fn gen_mut_struct_field_mut_fns(
 fn gen_field_set_fns(
     type_ident: &syn::Ident,
     fields: &FieldsNamed,
-    storage_type: &TypeExpr,
+    storage_type: &StorageTypeExpr,
 ) -> proc_macro2::TokenStream {
     fields
         .named
@@ -535,7 +528,7 @@ fn gen_field_set_fns(
                     extract_offset: offset,
                     extract_len: len,
                 },
-                new_value: quote! { <#ty as ::bitpiece::BitPiece>::to_bits(new_value) },
+                new_value: quote! { <#ty as ::bitpiece::BitPiece>::Converter::to_bits(new_value) },
             });
             quote! {
                 #vis const fn #set_ident (&mut self, new_value: #ty) {
@@ -549,7 +542,7 @@ fn gen_field_set_fns(
 fn gen_field_mut_fns(
     type_ident: &syn::Ident,
     fields: &FieldsNamed,
-    storage_type: &TypeExpr,
+    storage_type: &StorageTypeExpr,
 ) -> proc_macro2::TokenStream {
     fields
         .named
@@ -562,7 +555,7 @@ fn gen_field_mut_fns(
             let ident_mut = format_ident!("{}_mut", ident);
             let storage_type = storage_type.clone();
             let mut_ty = quote! {
-                <#ty as ::bitpiece::BitPiece>::Mut<'s, #storage_type>
+                <#ty as ::bitpiece::BitPieceHasMutRef>::MutRef<'s>
             };
             quote! {
                 #vis const fn #ident_mut<'s>(&'s mut self) -> #mut_ty {
@@ -573,37 +566,4 @@ fn gen_field_mut_fns(
             }
         })
         .collect()
-}
-/// information about the offset and len of a field.
-struct FieldOffsetAndLen {
-    len: BitLenExpr,
-    offset: BitOffsetExpr,
-}
-
-/// generates the final implementation of the `BitPieceMut` trait given the implementation details.
-fn bitpiece_mut_gen_impl(
-    mut_type_ident: &syn::Ident,
-    type_ident: &syn::Ident,
-) -> proc_macro2::TokenStream {
-    quote! {
-        #[automatically_derived]
-        impl<'s, S: ::bitpiece::BitStorage> ::bitpiece::BitPieceMut<'s, S, #type_ident> for #mut_type_ident<'s, S> {
-            fn new(storage: &'s mut S, start_bit_index: usize) -> Self {
-                Self {
-                    bits: ::bitpiece::BitsMut::new(storage, start_bit_index),
-                }
-            }
-            fn get(&self) -> #type_ident {
-                let bits_u64 = self.bits.get_bits(0, <#type_ident as ::bitpiece::BitPiece>::BITS);
-                let bits = <<#type_ident as ::bitpiece::BitPiece>::Bits as ::bitpiece::BitStorage>::from_u64(bits_u64).unwrap();
-                <#type_ident as ::bitpiece::BitPiece>::from_bits(bits)
-            }
-            fn set(&mut self, new_value: #type_ident) {
-                let bits = <#type_ident as ::bitpiece::BitPiece>::to_bits(new_value);
-                let bits_u64 = <<#type_ident as ::bitpiece::BitPiece>::Bits as ::bitpiece::BitStorage>::to_u64(bits);
-                self.bits
-                    .set_bits(0, <#type_ident as ::bitpiece::BitPiece>::BITS, bits_u64)
-            }
-        }
-    }
 }

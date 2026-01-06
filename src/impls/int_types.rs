@@ -24,6 +24,9 @@ macro_rules! impl_bitpiece_for_unsigned_int_types {
                     pub const fn const_eq(a: [<u $bit_len>], b: [<u $bit_len>]) -> bool {
                         a == b
                     }
+                    pub const fn to_storage_mut_ref(x: &mut [<u $bit_len>]) -> BitPieceStorageMutRef<'_> {
+                        BitPieceStorageMutRef::[<U $bit_len>](x)
+                    }
                 }
                 impl BitPiece for [<u $bit_len>] {
                     const BITS: usize = $bit_len;

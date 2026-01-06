@@ -3,7 +3,7 @@ use quote::{format_ident, quote, ToTokens};
 use syn::{DataEnum, DeriveInput, Fields};
 
 use crate::{
-    newtypes::{BitLenExpr, TypeExpr},
+    newtypes::{BitLenExpr, StorageTypeExpr, TypeExpr},
     utils::{bitpiece_gen_impl, not_supported_err, BitPieceGenImplParams},
     MacroArgs,
 };
@@ -58,7 +58,7 @@ fn enum_bit_len(enum_ident: &syn::Ident, data_enum: &DataEnum) -> proc_macro2::T
 fn gen_try_from_bits_code(
     enum_ident: &syn::Ident,
     data_enum: &DataEnum,
-    storage_type: &TypeExpr,
+    storage_type: &StorageTypeExpr,
 ) -> proc_macro2::TokenStream {
     let const_idents = (0..data_enum.variants.len()).map(|i| format_ident!("V{}", i));
     let consts =
@@ -124,7 +124,7 @@ pub fn bitpiece_enum(
 
     let storage_type_calc = bit_len.storage_type();
     let storage_type_ident = format_ident!("{}StorageTy", input.ident);
-    let storage_type = TypeExpr(storage_type_ident.to_token_stream());
+    let storage_type = StorageTypeExpr(storage_type_ident.to_token_stream());
 
     let implementation = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: input.ident.clone(),

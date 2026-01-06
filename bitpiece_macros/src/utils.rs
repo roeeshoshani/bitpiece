@@ -1,7 +1,7 @@
 use quote::{quote, quote_spanned};
 use syn::Generics;
 
-use crate::newtypes::{BitLenExpr, TypeExpr};
+use crate::newtypes::{BitLenExpr, StorageTypeExpr, TypeExpr};
 
 pub fn not_supported_err_span(what: &str, span: proc_macro2::Span) -> proc_macro::TokenStream {
     quote_spanned! {
@@ -49,7 +49,7 @@ pub struct BitPieceGenImplParams {
     pub bit_len: BitLenExpr,
 
     /// the bits storage type of this type.
-    pub storage_type: TypeExpr,
+    pub storage_type: StorageTypeExpr,
 
     /// the fields type of this type.
     /// this is the type which represents the expanded view of this bitpiece.
