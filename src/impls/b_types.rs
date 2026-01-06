@@ -18,6 +18,8 @@ macro_rules! define_b_type {
                     ((1 as $storage) << $bit_len).wrapping_sub(1)
                 }
             );
+            const MIN: Self = Self::ZEROES;
+            const MAX: Self = Self::ONES;
             type Bits = $storage;
             type Converter = Self;
             fn try_from_bits(bits: Self::Bits) -> Option<Self> {

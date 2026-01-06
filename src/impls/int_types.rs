@@ -29,6 +29,8 @@ macro_rules! impl_bitpiece_for_unsigned_int_types {
                     const BITS: usize = $bit_len;
                     const ZEROES: Self = 0;
                     const ONES: Self = !0;
+                    const MIN: Self = [<u $bit_len>]::MIN;
+                    const MAX: Self = [<u $bit_len>]::MAX;
                     type Bits = Self;
                     type Converter = [<BitPieceU $bit_len Converter>];
                     fn try_from_bits(bits: Self::Bits) -> Option<Self> {
@@ -90,6 +92,8 @@ macro_rules! impl_bitpiece_for_signed_int_types {
                     const BITS: usize = $bit_len;
                     const ZEROES: Self = 0;
                     const ONES: Self = !0;
+                    const MIN: Self = [<i $bit_len>]::MIN;
+                    const MAX: Self = [<i $bit_len>]::MAX;
                     type Bits = [<u $bit_len>];
                     type Converter = [<BitPieceI $bit_len Converter>];
                     fn try_from_bits(bits: Self::Bits) -> Option<Self> {

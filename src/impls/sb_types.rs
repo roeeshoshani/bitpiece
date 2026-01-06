@@ -9,6 +9,8 @@ macro_rules! define_sb_type {
             const BITS: usize = $bit_len;
             const ZEROES: Self = Self(0);
             const ONES: Self = Self::from_bits(Self::STORAGE_MASK);
+            const MIN: Self = Self(((1 as $storage) << ($bit_len - 1)).wrapping_neg() as $storage_signed);
+            const MAX: Self = Self(((1 as $storage) << ($bit_len - 1)).wrapping_sub(1) as $storage_signed);
             type Bits = $storage;
             type Converter = Self;
             fn try_from_bits(bits: Self::Bits) -> Option<Self> {
@@ -79,12 +81,6 @@ macro_rules! define_sb_type {
                     ((1 as $storage) << $bit_len).wrapping_sub(1)
                 }
             );
-
-            /// the max allowed value for this type.
-            pub const MAX: Self = Self(((1 as $storage) << ($bit_len - 1)).wrapping_sub(1) as $storage_signed);
-
-            /// the minimum allowed value for this type.
-            pub const MIN: Self = Self(((1 as $storage) << ($bit_len - 1)).wrapping_neg() as $storage_signed);
 
             /// creates a new instance of this bitfield type with the given value.
             ///

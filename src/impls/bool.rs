@@ -30,6 +30,8 @@ impl BitPiece for bool {
     const BITS: usize = 1;
     const ZEROES: Self = false;
     const ONES: Self = true;
+    const MIN: Self = false;
+    const MAX: Self = true;
     type Bits = u8;
     type Converter = BitPieceBoolConverter;
     fn try_from_bits(bits: Self::Bits) -> Option<Self> {

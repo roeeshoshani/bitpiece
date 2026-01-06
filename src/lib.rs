@@ -24,6 +24,12 @@ pub trait BitPiece: Copy {
     /// a value with all one bits.
     const ONES: Self;
 
+    /// the minimum value.
+    const MIN: Self;
+
+    /// the maximum value.
+    const MAX: Self;
+
     /// the storage type used internally to store the bits of this bitpiece.
     type Bits: BitStorage;
 
