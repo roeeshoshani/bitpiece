@@ -114,7 +114,7 @@ pub fn bitpiece_enum(
     let u64_values_calc = gen_enum_variant_u64_values_array(ident, data_enum);
     let u64_values_ident = proc_macro2::Ident::new(
         &format!(
-            "{}_VARIANT_U64_VALUES",
+            "{}_VARIANT_VALUES_U64",
             input
                 .ident
                 .to_string()
