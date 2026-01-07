@@ -50,3 +50,22 @@ pub const fn const_array_max_u64(array: &[u64]) -> u64 {
     });
     maybe_max.unwrap()
 }
+
+pub const fn const_array_min_u64(array: &[u64]) -> u64 {
+    let mut maybe_min = None;
+    use const_for::const_for;
+    const_for!(i in 0..array.len() => {
+        let cur = array[i];
+        match maybe_min {
+            Some(min) => {
+                if cur < min {
+                    maybe_min = Some(cur)
+                }
+            },
+            None => {
+                maybe_min = Some(cur)
+            }
+        }
+    });
+    maybe_min.unwrap()
+}

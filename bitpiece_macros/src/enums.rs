@@ -145,6 +145,11 @@ pub fn bitpiece_enum(
 
     let mut_type_ident = format_ident!("{}MutRef", ident);
 
+    let min_u64_val = quote! { ::bitpiece::const_array_min_u64(#u64_values_ident) };
+    let max_u64_val = quote! { ::bitpiece::const_array_max_u64(#u64_values_ident) };
+    let min_variant = quote! { #ident::from_bits(#min_u64_val) };
+    let max_variant = quote! { #ident::from_bits(#max_u64_val) };
+
     let implementation = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: ident.clone(),
         mut_type_ident: mut_type_ident.clone(),
@@ -155,10 +160,10 @@ pub fn bitpiece_enum(
         from_fields_code: quote! { fields },
         storage_type,
         bit_len,
-        zeroes: todo!(),
-        ones: todo!(),
-        min: todo!(),
-        max: todo!(),
+        zeroes: min_variant.clone(),
+        ones: max_variant.clone(),
+        min: min_variant,
+        max: max_variant,
     });
 
     let vis = &input.vis;
