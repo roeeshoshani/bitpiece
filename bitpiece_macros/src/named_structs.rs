@@ -133,9 +133,11 @@ fn gen_const_instantiation(
     let const_name_ident = syn::Ident::new(const_name, proc_macro2::Span::mixed_site());
     let instantiate_each_field = fields.named.iter().map(|f| {
         let field_ident = &f.ident;
-        let field_type = &f.ty;
+        let field_ty = &f.ty;
         quote! {
-            #field_ident: <#field_type as ::bitpiece::BitPiece>::#const_name_ident.to_fields(),
+            #field_ident: <#field_ty as ::bitpiece::BitPiece>::Converter::to_fields(
+                <#field_ty as ::bitpiece::BitPiece>::#const_name_ident
+            ),
         }
     });
     quote! {
