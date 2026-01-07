@@ -43,7 +43,7 @@ fn bit_extraction() {
 
 #[test]
 fn bit_modification() {
-    let mut value = BitPieceA::zeroes();
+    let mut value = BitPieceA::ZEROES;
     assert_eq!(value.x(), false);
     assert_eq!(value.y(), BitPieceEnum::Variant0);
     assert_eq!(value.storage, 0);
@@ -117,7 +117,7 @@ fn from_to_fields() {
 
 #[test]
 fn zeroed() {
-    let zeroed = BitPieceComplex::zeroes();
+    let zeroed = BitPieceComplex::ZEROES;
     assert_eq!(zeroed.storage, 0);
 }
 
@@ -326,7 +326,7 @@ fn signed_i8_extraction() {
 
 #[test]
 fn signed_i8_modification() {
-    let mut value = StructWithSigned::zeroes();
+    let mut value = StructWithSigned::ZEROES;
     assert_eq!(value.storage, 0);
     assert_eq!(value.a(), B3::new(0));
     assert_eq!(value.b(), 0i8);
@@ -429,7 +429,7 @@ fn sb_type_extraction() {
 
 #[test]
 fn sb_type_modification() {
-    let mut value = StructWithSb::zeroes();
+    let mut value = StructWithSb::ZEROES;
     assert_eq!(value.storage, 0);
     assert_eq!(value.a(), SB5::new(0));
     assert_eq!(value.b(), false);

@@ -45,11 +45,12 @@ fn enum_bit_len(num_variants: usize, u64_values_array: &syn::Ident) -> proc_macr
         {
             const BITS_REQUIRED_FOR_EACH_VALUE: [u64; #num_variants] = {
                 let mut res = [0u64; #num_variants];
-                for i in 0..#num_variants {
+                use ::bitpiece::const_for;
+                const_for!(i in 0..#num_variants => {
                     let variant_value = #u64_values_array[i];
                     let bits_required = (64 - variant_value.leading_zeros() as u64);
                     res[i] = bits_required;
-                }
+                });
                 res
             };
             ::bitpiece::const_array_max_u64(&BITS_REQUIRED_FOR_EACH_VALUE)
@@ -170,7 +171,7 @@ pub fn bitpiece_enum(
 
     quote! {
         #vis const #u64_values_ident: [u64; #num_variants] = #u64_values_calc;
-        #vis const #bit_len_ident: usize = #bit_len_calc;
+        #vis const #bit_len_ident: usize = (#bit_len_calc) as usize;
         #vis type #storage_type_ident = #storage_type_calc;
 
         #input
