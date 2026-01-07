@@ -52,7 +52,7 @@ fn enum_bit_len(num_variants: usize, u64_values_array: &syn::Ident) -> proc_macr
                 }
                 res
             };
-            ::bitpiece::const_array_max_u64(&BITS_REQUIRED_FOR_EACH_VALUE[..])
+            ::bitpiece::const_array_max_u64(&BITS_REQUIRED_FOR_EACH_VALUE)
         }
     }
 }
@@ -145,8 +145,8 @@ pub fn bitpiece_enum(
 
     let mut_type_ident = format_ident!("{}MutRef", ident);
 
-    let min_u64_val = quote! { ::bitpiece::const_array_min_u64(#u64_values_ident) };
-    let max_u64_val = quote! { ::bitpiece::const_array_max_u64(#u64_values_ident) };
+    let min_u64_val = quote! { ::bitpiece::const_array_min_u64(&#u64_values_ident) };
+    let max_u64_val = quote! { ::bitpiece::const_array_max_u64(&#u64_values_ident) };
     let min_variant = quote! { #ident::from_bits(#min_u64_val) };
     let max_variant = quote! { #ident::from_bits(#max_u64_val) };
 
@@ -178,10 +178,6 @@ pub fn bitpiece_enum(
         ::bitpiece::bitpiece_define_mut_ref_type! { #ident, #mut_type_ident, #vis }
 
         #implementation
-
-        impl #input {
-            #vis #u64_values_calc
-        }
     }
     .into()
 }
