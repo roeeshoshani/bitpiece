@@ -135,7 +135,7 @@ fn gen_const_instantiation(
         let field_ident = &f.ident;
         let field_type = &f.ty;
         quote! {
-            #field_ident: <#field_type as ::bitpiece::BitPiece>::#const_name_ident,
+            #field_ident: <#field_type as ::bitpiece::BitPiece>::#const_name_ident.to_fields(),
         }
     });
     quote! {
