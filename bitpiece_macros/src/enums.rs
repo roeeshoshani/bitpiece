@@ -26,31 +26,33 @@ fn enum_variant_u64_values<'a>(
     data_enum: &'a DataEnum,
 ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
     enum_variant_values(enum_ident, data_enum).map(|value| {
-        quote! {
-            (#value as u64)
-        }
+        quote! { #value as u64 }
     })
 }
 
-fn enum_bit_len(enum_ident: &syn::Ident, data_enum: &DataEnum) -> proc_macro2::TokenStream {
-    let u64_values = enum_variant_u64_values(enum_ident, data_enum);
-    let bits_required_for_each_value =
-        u64_values.map(|u64_value| quote! { (64 - (#u64_value).leading_zeros()) });
-    let max_bits_required = bits_required_for_each_value.reduce(|accumulator, cur_item| {
-        quote! {
-            max(#accumulator, #cur_item)
-        }
-    });
+fn gen_enum_variant_u64_values_array(
+    enum_ident: &syn::Ident,
+    data_enum: &DataEnum,
+) -> proc_macro2::TokenStream {
+    let values = enum_variant_u64_values(enum_ident, data_enum);
+    quote! {
+        [#(#values,)*]
+    }
+}
+
+fn enum_bit_len(num_variants: usize, u64_values_array: &syn::Ident) -> proc_macro2::TokenStream {
     quote! {
         {
-            const fn max(a: u32, b: u32) -> u32 {
-                if a >= b {
-                    a
-                } else {
-                    b
+            const BITS_REQUIRED_FOR_EACH_VALUE: [u64; #num_variants] = {
+                let mut res = [0u64; #num_variants];
+                for i in 0..#num_variants {
+                    let variant_value = #u64_values_array[i];
+                    let bits_required = (64 - variant_value.leading_zeros() as u64);
+                    res[i] = bits_required;
                 }
-            }
-            (#max_bits_required) as usize
+                res
+            };
+            ::bitpiece::const_array_max_u64(&BITS_REQUIRED_FOR_EACH_VALUE[..])
         }
     }
 }
@@ -106,9 +108,24 @@ pub fn bitpiece_enum(
         return not_supported_err("enum variants with data");
     }
 
+    let ident = &input.ident;
+    let num_variants = data_enum.variants.len();
+
+    let u64_values_calc = gen_enum_variant_u64_values_array(ident, data_enum);
+    let u64_values_ident = proc_macro2::Ident::new(
+        &format!(
+            "{}_VARIANT_U64_VALUES",
+            input
+                .ident
+                .to_string()
+                .to_case(convert_case::Case::Constant)
+        ),
+        ident.span(),
+    );
+
     let bit_len_calc = match macro_args.explicit_bit_length {
         Some(explicit_bit_len) => BitLenExpr(quote! {#explicit_bit_len}),
-        None => BitLenExpr(enum_bit_len(&input.ident, data_enum)),
+        None => BitLenExpr(enum_bit_len(num_variants, &u64_values_ident)),
     };
     let bit_len_ident = proc_macro2::Ident::new(
         &format!(
@@ -118,19 +135,21 @@ pub fn bitpiece_enum(
                 .to_string()
                 .to_case(convert_case::Case::Constant)
         ),
-        input.ident.span(),
+        ident.span(),
     );
     let bit_len = BitLenExpr(bit_len_ident.to_token_stream());
 
     let storage_type_calc = bit_len.storage_type();
-    let storage_type_ident = format_ident!("{}StorageTy", input.ident);
+    let storage_type_ident = format_ident!("{}StorageTy", ident);
     let storage_type = StorageTypeExpr(storage_type_ident.to_token_stream());
 
+    let mut_type_ident = format_ident!("{}MutRef", ident);
+
     let implementation = bitpiece_gen_impl(BitPieceGenImplParams {
-        type_ident: input.ident.clone(),
-        mut_type_ident: todo!(),
+        type_ident: ident.clone(),
+        mut_type_ident: mut_type_ident.clone(),
         to_bits_code: quote! { self as #storage_type },
-        try_from_bits_code: gen_try_from_bits_code(&input.ident, data_enum, &storage_type),
+        try_from_bits_code: gen_try_from_bits_code(ident, data_enum, &storage_type),
         fields_type: TypeExpr(quote! { Self }),
         to_fields_code: quote! { self },
         from_fields_code: quote! { fields },
@@ -145,12 +164,19 @@ pub fn bitpiece_enum(
     let vis = &input.vis;
 
     quote! {
+        #vis const #u64_values_ident: [u64; #num_variants] = #u64_values_calc;
         #vis const #bit_len_ident: usize = #bit_len_calc;
         #vis type #storage_type_ident = #storage_type_calc;
 
         #input
 
+        ::bitpiece::bitpiece_define_mut_ref_type! { #ident, #mut_type_ident, #vis }
+
         #implementation
+
+        impl #input {
+            #vis #u64_values_calc
+        }
     }
     .into()
 }

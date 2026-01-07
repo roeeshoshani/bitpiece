@@ -32,29 +32,21 @@ pub const fn modify_bits(value: u64, offset: usize, len: usize, new_value: u64) 
     without_original_bits | shifted_new_value
 }
 
-macro_rules! impl_const_array_max_for_type {
-    {$t: ty} => {
-        paste::paste!{
-            pub const fn [<const_array_max_ $t>](array: &[$t]) -> $t {
-                let mut maybe_max = None;
-                use const_for::const_for;
-                const_for!(i in 0..array.len() => {
-                    let cur = array[i];
-                    match maybe_max {
-                        Some(max) => {
-                            if cur > max {
-                                maybe_max = Some(cur)
-                            }
-                        },
-                        None => {
-                            maybe_max = Some(cur)
-                        }
-                    }
-                });
-                maybe_max.unwrap()
+pub const fn const_array_max_u64(array: &[u64]) -> u64 {
+    let mut maybe_max = None;
+    use const_for::const_for;
+    const_for!(i in 0..array.len() => {
+        let cur = array[i];
+        match maybe_max {
+            Some(max) => {
+                if cur > max {
+                    maybe_max = Some(cur)
+                }
+            },
+            None => {
+                maybe_max = Some(cur)
             }
         }
-    };
+    });
+    maybe_max.unwrap()
 }
-impl_const_array_max_for_type! {u64}
-impl_const_array_max_for_type! {i64}
