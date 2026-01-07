@@ -148,8 +148,8 @@ pub fn bitpiece_enum(
 
     let min_u64_val = quote! { ::bitpiece::const_array_min_u64(&#u64_values_ident) };
     let max_u64_val = quote! { ::bitpiece::const_array_max_u64(&#u64_values_ident) };
-    let min_variant = quote! { #ident::from_bits(#min_u64_val) };
-    let max_variant = quote! { #ident::from_bits(#max_u64_val) };
+    let min_variant = quote! { #ident::from_bits(#min_u64_val as #storage_type) };
+    let max_variant = quote! { #ident::from_bits(#max_u64_val as #storage_type) };
 
     let implementation = bitpiece_gen_impl(BitPieceGenImplParams {
         type_ident: ident.clone(),
