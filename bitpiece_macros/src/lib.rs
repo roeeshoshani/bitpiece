@@ -43,6 +43,18 @@ enum OptIn {
     MutStructFieldMut,
 }
 
+#[derive(EnumString, VariantNames, Hash, Clone, Copy, Debug, PartialEq, Eq)]
+enum OptInPreset {
+    Default,
+}
+impl OptInPreset {
+    fn opt_ins(&self) -> &'static [OptIn] {
+        match self {
+            OptInPreset::Default => &[OptIn::FieldGet, OptIn::FieldSet],
+        }
+    }
+}
+
 struct ExplicitBitLengthArg {
     bit_length: usize,
     lit: LitInt,
@@ -52,10 +64,15 @@ struct OptInArg {
     opt_in: OptIn,
     ident: syn::Ident,
 }
+struct OptInPresetArg {
+    opt_in_preset: OptInPreset,
+    ident: syn::Ident,
+}
 
 enum MacroArg {
     ExplicitBitLength(ExplicitBitLengthArg),
     OptIn(OptInArg),
+    OptInPreset(OptInPresetArg),
 }
 impl Parse for MacroArg {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -82,10 +99,16 @@ impl Parse for MacroArg {
 
             let ident_pascal_case = ident.to_string().to_upper_camel_case();
 
-            let opt_in = OptIn::from_str(&ident_pascal_case)
-                .map_err(|_| syn::Error::new_spanned(&ident, unknown_macro_arg_err))?;
-
-            return Ok(MacroArg::OptIn(OptInArg { opt_in, ident }));
+            if let Ok(opt_in) = OptIn::from_str(&ident_pascal_case) {
+                return Ok(MacroArg::OptIn(OptInArg { opt_in, ident }));
+            } else if let Ok(opt_in_preset) = OptInPreset::from_str(&ident_pascal_case) {
+                return Ok(MacroArg::OptInPreset(OptInPresetArg {
+                    opt_in_preset,
+                    ident,
+                }));
+            } else {
+                return Err(syn::Error::new_spanned(&ident, unknown_macro_arg_err));
+            }
         }
 
         Err(input.error(unknown_macro_arg_err))
@@ -96,6 +119,28 @@ struct RawMacroArgs(Punctuated<MacroArg, Comma>);
 impl Parse for RawMacroArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Punctuated::<MacroArg, Comma>::parse_terminated(input).map(Self)
+    }
+}
+
+struct OptInArgsCollector(Vec<OptInArg>);
+impl OptInArgsCollector {
+    fn new() -> Self {
+        Self(Vec::new())
+    }
+    fn add_opt_in(&mut self, arg: OptInArg) -> Result<(), syn::Error> {
+        if let Some(existing_arg) = self
+            .0
+            .iter()
+            .find(|existing_arg| existing_arg.opt_in == arg.opt_in)
+        {
+            let mut err = syn::Error::new_spanned(arg.ident, "duplicate opt in arg");
+            err.combine(syn::Error::new_spanned(
+                existing_arg.ident.clone(),
+                "conflicts with this previous opt in arg",
+            ));
+            return Err(err);
+        }
+        Ok(self.0.push(arg))
     }
 }
 
@@ -122,7 +167,7 @@ impl Parse for MacroArgs {
         let raw_args: RawMacroArgs = input.parse()?;
 
         let mut explicit_bit_length_arg: Option<ExplicitBitLengthArg> = None;
-        let mut opt_ins_args: Vec<OptInArg> = Vec::new();
+        let mut opt_in_args = OptInArgsCollector::new();
         for arg in raw_args.0 {
             match arg {
                 MacroArg::ExplicitBitLength(arg) => {
@@ -140,24 +185,21 @@ impl Parse for MacroArgs {
                     explicit_bit_length_arg = Some(arg);
                 }
                 MacroArg::OptIn(arg) => {
-                    if let Some(existing_arg) = opt_ins_args
-                        .iter()
-                        .find(|existing_arg| existing_arg.opt_in == arg.opt_in)
-                    {
-                        let mut err = syn::Error::new_spanned(arg.ident, "duplicate opt in arg");
-                        err.combine(syn::Error::new_spanned(
-                            existing_arg.ident.clone(),
-                            "conflicts with this previous opt in arg",
-                        ));
-                        return Err(err);
+                    opt_in_args.add_opt_in(arg)?;
+                }
+                MacroArg::OptInPreset(opt_in_preset_arg) => {
+                    for opt_in in opt_in_preset_arg.opt_in_preset.opt_ins() {
+                        opt_in_args.add_opt_in(OptInArg {
+                            opt_in: *opt_in,
+                            ident: opt_in_preset_arg.ident.clone(),
+                        })?;
                     }
-                    opt_ins_args.push(arg);
                 }
             }
         }
         Ok(MacroArgs {
             explicit_bit_length: explicit_bit_length_arg.map(|arg| arg.bit_length),
-            opt_ins: opt_ins_args.iter().map(|arg| arg.opt_in).collect(),
+            opt_ins: opt_in_args.0.iter().map(|arg| arg.opt_in).collect(),
         })
     }
 }
