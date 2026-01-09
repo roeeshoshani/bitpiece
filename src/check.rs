@@ -14,16 +14,20 @@ macro_rules! bitpiece_check_gen_values_to_check {
 
         let max_val = Converter::to_bits(<$t as $crate::BitPiece>::ONES) as u64;
 
-        &[
-            <$t as $crate::BitPiece>::ZEROES,
-            <$t as $crate::BitPiece>::ONES,
-            Converter::from_bits(
-                (0x31d6b601fb4faeb8u64 & max_val) as <$t as $crate::BitPiece>::Bits,
-            ),
-            Converter::from_bits(
-                (0xe9bd79bf8ca99263u64 & max_val) as <$t as $crate::BitPiece>::Bits,
-            ),
-        ]
+        let mut values_to_check = [<$t as $crate::BitPiece>::ZEROES; 4];
+        values_to_check[0] = <$t as $crate::BitPiece>::ZEROES;
+        values_to_check[1] = <$t as $crate::BitPiece>::ONES;
+        if let Some(val) = Converter::try_from_bits(
+            (0x31d6b601fb4faeb8u64 & max_val) as <$t as $crate::BitPiece>::Bits,
+        ) {
+            values_to_check[2] = val;
+        }
+        if let Some(val) = Converter::try_from_bits(
+            (0xe9bd79bf8ca99263u64 & max_val) as <$t as $crate::BitPiece>::Bits,
+        ) {
+            values_to_check[2] = val;
+        }
+        values_to_check
     }};
 }
 
