@@ -74,6 +74,17 @@ impl<'s> BitsMut<'s> {
         )
     }
 
+    /// returns `len` bits starting at relative bit index `rel_bit_index`, but returns them at their original bit position.
+    /// basically, this only masks the value, without shifting.
+    #[inline(always)]
+    pub const fn get_bits_noshift(&self, rel_bit_index: usize, len: usize) -> u64 {
+        extract_bits_noshift(
+            self.storage.get(),
+            self.start_bit_index + rel_bit_index,
+            len,
+        )
+    }
+
     /// modifies the `len` bits starting at relative bit index `rel_bit_index` to the given `new_value`.
     #[inline(always)]
     pub const fn set_bits(&mut self, rel_bit_index: usize, len: usize, new_value: u64) {

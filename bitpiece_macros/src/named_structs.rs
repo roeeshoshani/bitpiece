@@ -87,6 +87,10 @@ pub fn bitpiece_named_struct(
         OptIn::MutStructFieldGet,
         gen_mut_struct_field_access_fns(ident, fields),
     );
+    let mut_struct_field_access_noshift_fns = macro_args.filter_opt_in_code(
+        OptIn::GetNoshift,
+        gen_mut_struct_field_access_noshift_fns(ident, fields),
+    );
     let mut_struct_field_set_fns = macro_args.filter_opt_in_code(
         OptIn::MutStructFieldSet,
         gen_mut_struct_field_set_fns(ident, fields),
@@ -138,6 +142,7 @@ pub fn bitpiece_named_struct(
         quote! {
             impl<'s> #mut_type_ident<'s> {
                 #mut_struct_field_access_fns
+                #mut_struct_field_access_noshift_fns
                 #mut_struct_field_set_fns
                 #mut_struct_field_mut_fns
             }
@@ -487,6 +492,31 @@ fn gen_mut_struct_field_access_fns(
                 #vis const fn #ident(&self) -> #ty {
                     <#ty as ::bitpiece::BitPiece>::Converter::from_bits(
                         self.0.get_bits(#offset, #len) as <#ty as ::bitpiece::BitPiece>::Bits
+                    )
+                }
+            }
+        })
+        .collect()
+}
+
+fn gen_mut_struct_field_access_noshift_fns(
+    type_ident: &syn::Ident,
+    fields: &FieldsNamed,
+) -> proc_macro2::TokenStream {
+    fields
+        .named
+        .iter()
+        .map(|field| {
+            let len = get_field_len(type_ident, field);
+            let offset = get_field_offset(type_ident, field);
+            let vis = &field.vis;
+            let ty = &field.ty;
+            let ident = field.ident.as_ref().unwrap();
+            let ident_noshift = format_ident!("{}_noshift", ident);
+            quote! {
+                #vis const fn #ident_noshift(&self) -> #ty {
+                    <#ty as ::bitpiece::BitPiece>::Converter::from_bits(
+                        self.0.get_bits_noshift(#offset, #len) as <#ty as ::bitpiece::BitPiece>::Bits
                     )
                 }
             }
