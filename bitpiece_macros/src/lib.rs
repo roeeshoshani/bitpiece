@@ -31,16 +31,16 @@ pub fn bitpiece(
 
 #[derive(EnumString, VariantNames, AllValues, Hash, Clone, Copy, Debug, PartialEq, Eq)]
 enum OptIn {
-    FieldGet,
-    FieldSet,
-    FieldGetNoshift,
-    FieldMut,
+    Get,
+    Set,
+    GetNoshift,
+    GetMut,
     ConstEq,
     MutStruct,
     FieldsStruct,
     MutStructFieldGet,
     MutStructFieldSet,
-    MutStructFieldGetNoShift,
+    MutStructFieldGetNoshift,
     MutStructFieldMut,
 }
 
@@ -52,7 +52,7 @@ enum OptInPreset {
 impl OptInPreset {
     fn opt_ins(&self) -> &'static [OptIn] {
         match self {
-            OptInPreset::Basic => &[OptIn::FieldGet, OptIn::FieldSet],
+            OptInPreset::Basic => &[OptIn::Get, OptIn::Set],
             OptInPreset::All => OptIn::ALL_VALUES.as_slice(),
         }
     }

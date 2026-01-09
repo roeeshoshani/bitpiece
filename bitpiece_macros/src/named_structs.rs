@@ -69,19 +69,17 @@ pub fn bitpiece_named_struct(
     });
 
     let field_access_fns = macro_args.filter_opt_in_code(
-        OptIn::FieldGet,
+        OptIn::Get,
         gen_field_access_fns(ident, fields, &storage_type),
     );
     let field_access_noshift_fns = macro_args.filter_opt_in_code(
-        OptIn::FieldGetNoshift,
+        OptIn::GetNoshift,
         gen_field_access_noshift_fns(ident, fields, &storage_type),
     );
-    let field_set_fns = macro_args.filter_opt_in_code(
-        OptIn::FieldSet,
-        gen_field_set_fns(ident, fields, &storage_type),
-    );
+    let field_set_fns =
+        macro_args.filter_opt_in_code(OptIn::Set, gen_field_set_fns(ident, fields, &storage_type));
     let field_mut_fns = macro_args.filter_opt_in_code(
-        OptIn::FieldMut,
+        OptIn::GetMut,
         gen_field_mut_fns(ident, fields, &storage_type),
     );
 
