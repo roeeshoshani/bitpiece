@@ -50,7 +50,17 @@ fn bit_modification() {
     let mut value = BitPieceA::ZEROES;
     assert_eq!(value.x(), false);
     assert_eq!(value.y(), BitPieceEnum::Variant0);
-    assert_eq!(value.storage, 0);
+    assert_eq!(value.storage, 0b000);
+
+    let mod_value = value.with_y(BitPieceEnum::Variant3);
+    assert_eq!(mod_value.x(), false);
+    assert_eq!(mod_value.y(), BitPieceEnum::Variant3);
+    assert_eq!(mod_value.storage, 0b110);
+
+    let mod_value = value.with_y(BitPieceEnum::Variant3).with_x(true);
+    assert_eq!(mod_value.x(), true);
+    assert_eq!(mod_value.y(), BitPieceEnum::Variant3);
+    assert_eq!(mod_value.storage, 0b111);
 
     value.set_x(true);
     assert_eq!(value.x(), true);
