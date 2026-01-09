@@ -56,5 +56,5 @@ impl BitPieceHasFields for bool {
         <Self as BitPiece>::Converter::to_fields(self)
     }
 }
-bitpiece_check_full_impl! { bool }
+bitpiece_check_full_impl! { bool, true }
 bitpiece_define_mut_ref_type! { bool, BitPieceBoolMutRef, pub }

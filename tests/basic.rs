@@ -8,7 +8,7 @@ enum BitPieceEnum {
     Variant2 = 2,
     Variant3 = 3,
 }
-bitpiece_check_full_impl! {BitPieceEnum}
+bitpiece_check_full_impl! {BitPieceEnum, true}
 
 #[bitpiece(3)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,7 +16,7 @@ struct BitPieceA {
     x: bool,
     y: BitPieceEnum,
 }
-bitpiece_check_full_impl! {BitPieceA}
+bitpiece_check_full_impl! {BitPieceA, true}
 
 #[bitpiece(35)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,7 +24,7 @@ struct BitPieceB {
     x: u32,
     y: B3,
 }
-bitpiece_check_full_impl! {BitPieceB}
+bitpiece_check_full_impl! {BitPieceB, true}
 
 #[bitpiece(38)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,7 +32,7 @@ struct BitPieceComplex {
     a: BitPieceA,
     b: BitPieceB,
 }
-bitpiece_check_full_impl! {BitPieceComplex}
+bitpiece_check_full_impl! {BitPieceComplex, true}
 
 #[test]
 fn bit_extraction() {
@@ -143,7 +143,7 @@ enum NonExhaustiveEnum {
     Variant77 = 77,
     Variant120 = 120,
 }
-bitpiece_check_full_impl! {NonExhaustiveEnum}
+bitpiece_check_full_impl! {NonExhaustiveEnum, false}
 
 #[test]
 fn valid_variants_of_non_exhastive_enum() {
@@ -215,7 +215,7 @@ enum NonExhaustiveEnumExplicitBitLen {
     Variant77 = 77,
     Variant120 = 120,
 }
-bitpiece_check_full_impl! {NonExhaustiveEnumExplicitBitLen}
+bitpiece_check_full_impl! {NonExhaustiveEnumExplicitBitLen, false}
 
 #[test]
 fn non_exhaustive_enum_explicit_bit_len() {
@@ -235,7 +235,7 @@ struct NonExhaustiveEnumContainer1 {
     b: NonExhaustiveEnum,
     c: B3,
 }
-bitpiece_check_full_impl! {NonExhaustiveEnumContainer1}
+bitpiece_check_full_impl! {NonExhaustiveEnumContainer1, false}
 
 #[bitpiece(27)]
 struct NonExhaustiveEnumContainer2 {
@@ -243,7 +243,7 @@ struct NonExhaustiveEnumContainer2 {
     b: NonExhaustiveEnumContainer1,
     c: B7,
 }
-bitpiece_check_full_impl! {NonExhaustiveEnumContainer2}
+bitpiece_check_full_impl! {NonExhaustiveEnumContainer2, false}
 
 #[test]
 fn non_exhaustive_enum_container() {
@@ -288,7 +288,7 @@ struct StructWithSigned {
     b: i8,
     c: bool,
 }
-bitpiece_check_full_impl! {StructWithSigned}
+bitpiece_check_full_impl! {StructWithSigned, true}
 
 #[bitpiece(51)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -298,7 +298,7 @@ struct StructWithSigned2 {
     c: i32,
     d: B2,
 }
-bitpiece_check_full_impl! {StructWithSigned2}
+bitpiece_check_full_impl! {StructWithSigned2, true}
 
 #[test]
 fn signed_i8_extraction() {
@@ -397,7 +397,7 @@ struct StructWithSb {
     c: SB7,
     d: B3,
 }
-bitpiece_check_full_impl! {StructWithSb}
+bitpiece_check_full_impl! {StructWithSb, true}
 
 #[test]
 fn sb_type_extraction() {
@@ -505,7 +505,7 @@ struct StructWithSbTryFrom {
     b: SB3,
     c: B2,
 }
-bitpiece_check_full_impl! {StructWithSbTryFrom}
+bitpiece_check_full_impl! {StructWithSbTryFrom, true}
 
 #[test]
 fn sb_type_try_from_bits() {

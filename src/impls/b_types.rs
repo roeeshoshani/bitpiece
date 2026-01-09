@@ -111,7 +111,7 @@ macro_rules! define_b_type {
                 core::fmt::Debug::fmt(&self.0, f)
             }
         }
-        bitpiece_check_full_impl! { $ident }
+        bitpiece_check_full_impl! { $ident, true }
         bitpiece_define_mut_ref_type! { $ident, $mut_ref_ty_name, pub }
     };
 }

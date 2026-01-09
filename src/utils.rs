@@ -1,6 +1,7 @@
 #[inline(always)]
 const fn extract_bits_mask(len: usize) -> u64 {
-    (1u64 << len).wrapping_sub(1)
+    debug_assert!(len <= 64);
+    u64::MAX >> (64 - len)
 }
 
 #[inline(always)]
