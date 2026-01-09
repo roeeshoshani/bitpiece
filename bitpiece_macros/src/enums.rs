@@ -152,15 +152,17 @@ pub fn bitpiece_enum(
     let max_variant = quote! { #ident::from_bits(#max_u64_val as #storage_type) };
 
     let implementation = bitpiece_gen_impl(BitPieceGenImplParams {
-        type_ident: ident.clone(),
-        mut_type_ident: mut_type_ident.clone(),
+        type_ident: ident,
+        type_vis: &input.vis,
+        macro_args: &macro_args,
+        mut_type_ident: &mut_type_ident,
         to_bits_code: quote! { self as #storage_type },
         try_from_bits_code: gen_try_from_bits_code(ident, data_enum, &storage_type),
-        fields_type: TypeExpr(quote! { Self }),
+        fields_type: &TypeExpr(quote! { Self }),
         to_fields_code: quote! { self },
         from_fields_code: quote! { fields },
-        storage_type,
-        bit_len,
+        storage_type: &storage_type,
+        bit_len: &bit_len,
         zeroes: min_variant.clone(),
         ones: max_variant.clone(),
         min: min_variant,
@@ -175,8 +177,6 @@ pub fn bitpiece_enum(
         #vis type #storage_type_ident = #storage_type_calc;
 
         #input
-
-        ::bitpiece::bitpiece_define_mut_ref_type! { #ident, #mut_type_ident, #vis }
 
         #implementation
     }

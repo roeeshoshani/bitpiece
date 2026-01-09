@@ -30,13 +30,17 @@ pub fn bitpiece(
 
 #[derive(EnumString, VariantNames, Hash, Clone, Copy, Debug, PartialEq, Eq)]
 enum OptIn {
-    Get,
-    Set,
-    GetNoShift,
-    GetMut,
+    FieldGet,
+    FieldSet,
+    FieldGetNoShift,
+    FieldMut,
     ConstEq,
-    MutRef,
-    Fields,
+    MutStruct,
+    FieldsStruct,
+    MutStructFieldGet,
+    MutStructFieldSet,
+    MutStructFieldGetNoShift,
+    MutStructFieldMut,
 }
 
 struct ExplicitBitLengthArg {
@@ -99,6 +103,19 @@ impl Parse for RawMacroArgs {
 struct MacroArgs {
     explicit_bit_length: Option<usize>,
     opt_ins: HashSet<OptIn>,
+}
+impl MacroArgs {
+    pub fn filter_opt_in_code(
+        &self,
+        opt_in: OptIn,
+        code: proc_macro2::TokenStream,
+    ) -> proc_macro2::TokenStream {
+        if self.opt_ins.contains(&opt_in) {
+            code
+        } else {
+            quote::quote! {}
+        }
+    }
 }
 impl Parse for MacroArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {

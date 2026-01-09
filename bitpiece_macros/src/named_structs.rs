@@ -8,7 +8,7 @@ use crate::{
         bitpiece_gen_impl, gen_explicit_bit_length_assertion, not_supported_err,
         BitPieceGenImplParams,
     },
-    MacroArgs,
+    MacroArgs, OptIn,
 };
 
 pub fn bitpiece_named_struct(
@@ -47,37 +47,60 @@ pub fn bitpiece_named_struct(
 
     let fields_offsets_and_lens_consts = gen_fields_offsets_and_lens_consts(ident, fields);
 
+    let explicit_bit_len_assertion =
+        gen_explicit_bit_length_assertion(macro_args.explicit_bit_length, &bit_len);
+
     let bitpiece_impl = bitpiece_gen_impl(BitPieceGenImplParams {
-        type_ident: input.ident.clone(),
-        bit_len: bit_len.clone(),
-        storage_type: storage_type.clone(),
+        type_ident: ident,
+        type_vis: &input.vis,
+        macro_args: &macro_args,
+        bit_len: &bit_len,
+        storage_type: &storage_type,
         to_bits_code: quote! { self.storage },
         try_from_bits_code: gen_try_from_bits_code(ident, fields, &storage_type),
-        mut_type_ident: mut_type_ident.clone(),
+        mut_type_ident: &mut_type_ident,
+        fields_type: &fields_type,
         zeroes: gen_const_instantiation(ident, fields, &fields_type, "ZEROES"),
         ones: gen_const_instantiation(ident, fields, &fields_type, "ONES"),
         min: gen_const_instantiation(ident, fields, &fields_type, "MIN"),
         max: gen_const_instantiation(ident, fields, &fields_type, "MAX"),
         to_fields_code: gen_to_fields(fields, &fields_struct_ident),
         from_fields_code: gen_from_fields(fields, input),
-        fields_type,
     });
 
-    let field_access_fns = gen_field_access_fns(ident, fields, &storage_type);
-    let field_access_noshift_fns = gen_field_access_noshift_fns(ident, fields, &storage_type);
-    let field_set_fns = gen_field_set_fns(ident, fields, &storage_type);
-    let field_mut_fns = gen_field_mut_fns(ident, fields, &storage_type);
+    let field_access_fns = macro_args.filter_opt_in_code(
+        OptIn::FieldGet,
+        gen_field_access_fns(ident, fields, &storage_type),
+    );
+    let field_access_noshift_fns = macro_args.filter_opt_in_code(
+        OptIn::FieldGetNoShift,
+        gen_field_access_noshift_fns(ident, fields, &storage_type),
+    );
+    let field_set_fns = macro_args.filter_opt_in_code(
+        OptIn::FieldSet,
+        gen_field_set_fns(ident, fields, &storage_type),
+    );
+    let field_mut_fns = macro_args.filter_opt_in_code(
+        OptIn::FieldMut,
+        gen_field_mut_fns(ident, fields, &storage_type),
+    );
 
-    let mut_struct_field_access_fns = gen_mut_struct_field_access_fns(ident, fields);
-    let mut_struct_field_set_fns = gen_mut_struct_field_set_fns(ident, fields);
-    let mut_struct_field_mut_fns = gen_mut_struct_field_mut_fns(ident, fields);
-
-    let explicit_bit_len_assertion =
-        gen_explicit_bit_length_assertion(macro_args.explicit_bit_length, &bit_len);
+    let mut_struct_field_access_fns = macro_args.filter_opt_in_code(
+        OptIn::MutStructFieldGet,
+        gen_mut_struct_field_access_fns(ident, fields),
+    );
+    let mut_struct_field_set_fns = macro_args.filter_opt_in_code(
+        OptIn::MutStructFieldSet,
+        gen_mut_struct_field_set_fns(ident, fields),
+    );
+    let mut_struct_field_mut_fns = macro_args.filter_opt_in_code(
+        OptIn::MutStructFieldMut,
+        gen_mut_struct_field_mut_fns(ident, fields),
+    );
 
     let vis = &input.vis;
     let attrs = &input.attrs;
-    quote! {
+    let base_code = quote! {
         #vis const #bit_len_ident: usize = #bit_len_calc;
         #vis type #storage_type_ident = #storage_type_calc;
 
@@ -99,14 +122,6 @@ pub fn bitpiece_named_struct(
             #field_mut_fns
         }
 
-        ::bitpiece::bitpiece_define_mut_ref_type! { #ident, #mut_type_ident, #vis }
-
-        impl<'s> #mut_type_ident<'s> {
-            #mut_struct_field_access_fns
-            #mut_struct_field_set_fns
-            #mut_struct_field_mut_fns
-        }
-
         impl ::core::convert::From<#fields_struct_ident> for #ident {
             fn from(fields: #fields_struct_ident) -> Self {
                 Self::from_fields(fields)
@@ -118,8 +133,31 @@ pub fn bitpiece_named_struct(
             }
         }
 
-        #(#attrs)*
-        #vis struct #fields_struct_ident #fields_struct_modified_fields
+    };
+
+    let opt_mut_struct_code = macro_args.filter_opt_in_code(
+        OptIn::MutStruct,
+        quote! {
+            impl<'s> #mut_type_ident<'s> {
+                #mut_struct_field_access_fns
+                #mut_struct_field_set_fns
+                #mut_struct_field_mut_fns
+            }
+        },
+    );
+
+    let opt_fields_struct_code = macro_args.filter_opt_in_code(
+        OptIn::FieldsStruct,
+        quote! {
+            #(#attrs)*
+            #vis struct #fields_struct_ident #fields_struct_modified_fields
+        },
+    );
+
+    quote! {
+        #base_code
+        #opt_mut_struct_code
+        #opt_fields_struct_code
     }
     .into()
 }
