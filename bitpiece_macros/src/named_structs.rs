@@ -73,7 +73,7 @@ pub fn bitpiece_named_struct(
         gen_field_access_fns(ident, fields, &storage_type),
     );
     let field_access_noshift_fns = macro_args.filter_opt_in_code(
-        OptIn::FieldGetNoShift,
+        OptIn::FieldGetNoshift,
         gen_field_access_noshift_fns(ident, fields, &storage_type),
     );
     let field_set_fns = macro_args.filter_opt_in_code(

@@ -32,7 +32,7 @@ pub fn bitpiece(
 enum OptIn {
     FieldGet,
     FieldSet,
-    FieldGetNoShift,
+    FieldGetNoshift,
     FieldMut,
     ConstEq,
     MutStruct,
