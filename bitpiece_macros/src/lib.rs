@@ -36,8 +36,8 @@ enum OptIn {
     GetNoshift,
     GetMut,
     ConstEq,
-    MutStruct,
     FieldsStruct,
+    MutStruct,
     MutStructFieldGet,
     MutStructFieldSet,
     MutStructFieldGetNoshift,
@@ -48,12 +48,20 @@ enum OptIn {
 enum OptInPreset {
     Basic,
     All,
+    MutStructAll,
 }
 impl OptInPreset {
     fn opt_ins(&self) -> &'static [OptIn] {
         match self {
             OptInPreset::Basic => &[OptIn::Get, OptIn::Set],
             OptInPreset::All => OptIn::ALL_VALUES.as_slice(),
+            OptInPreset::MutStructAll => &[
+                OptIn::MutStruct,
+                OptIn::MutStructFieldGet,
+                OptIn::MutStructFieldSet,
+                OptIn::MutStructFieldGetNoshift,
+                OptIn::MutStructFieldMut,
+            ],
         }
     }
 }
