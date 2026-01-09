@@ -64,7 +64,8 @@ macro_rules! define_b_type {
             pub const fn const_eq(a: Self, b: Self) -> bool {
                 a.0 == b.0
             }
-
+        }
+        impl $ident {
             /// the max allowed value for this type.
             pub const MAX: Self = Self::ONES;
 

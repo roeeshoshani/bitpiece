@@ -67,7 +67,6 @@ macro_rules! define_sb_type {
             pub const fn const_eq(a: Self, b: Self) -> bool {
                 a.0 == b.0
             }
-
         }
         impl $ident {
             /// a mask of the bit length of this type.
