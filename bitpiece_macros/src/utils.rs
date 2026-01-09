@@ -154,6 +154,9 @@ pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStr
             pub const fn to_bits(self) -> #storage_type {
                 #to_bits_code
             }
+            pub const fn const_eq(a: Self, b: Self) -> bool {
+                a.to_bits() == b.to_bits()
+            }
         }
     }
 }

@@ -34,7 +34,9 @@ enum OptIn {
     Set,
     GetNoShift,
     GetMut,
-    MutStruct,
+    ConstEq,
+    MutRef,
+    Fields,
 }
 
 struct ExplicitBitLengthArg {
