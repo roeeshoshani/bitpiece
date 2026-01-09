@@ -33,6 +33,7 @@ pub fn bitpiece(
 enum OptIn {
     Get,
     Set,
+    With,
     GetNoshift,
     GetMut,
     ConstEq,
@@ -53,7 +54,7 @@ enum OptInPreset {
 impl OptInPreset {
     fn opt_ins(&self) -> &'static [OptIn] {
         match self {
-            OptInPreset::Basic => &[OptIn::Get, OptIn::Set],
+            OptInPreset::Basic => &[OptIn::Get, OptIn::Set, OptIn::With],
             OptInPreset::All => OptIn::ALL_VALUES.as_slice(),
             OptInPreset::MutStructAll => &[
                 OptIn::MutStruct,

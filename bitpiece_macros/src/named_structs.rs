@@ -76,6 +76,10 @@ pub fn bitpiece_named_struct(
         OptIn::GetNoshift,
         gen_field_access_noshift_fns(ident, fields, &storage_type),
     );
+    let field_with_fns = macro_args.filter_opt_in_code(
+        OptIn::With,
+        gen_field_with_fns(ident, fields, &storage_type),
+    );
     let field_set_fns =
         macro_args.filter_opt_in_code(OptIn::Set, gen_field_set_fns(ident, fields, &storage_type));
     let field_mut_fns = macro_args.filter_opt_in_code(
@@ -120,6 +124,7 @@ pub fn bitpiece_named_struct(
             #fields_offsets_and_lens_consts
             #field_access_fns
             #field_access_noshift_fns
+            #field_with_fns
             #field_set_fns
             #field_mut_fns
         }
@@ -453,6 +458,41 @@ fn gen_field_access_fns(
                 }
             }
         }).collect()
+}
+
+fn gen_field_with_fns(
+    type_ident: &syn::Ident,
+    fields: &FieldsNamed,
+    storage_type: &StorageTypeExpr,
+) -> proc_macro2::TokenStream {
+    fields
+        .named
+        .iter()
+        .map(|field| {
+            let len = get_field_len(type_ident, field);
+            let offset = get_field_offset(type_ident, field);
+            let vis = &field.vis;
+            let ty = &field.ty;
+            let ident = field.ident.as_ref().unwrap();
+            let with_ident = format_ident!("with_{}", ident);
+            let modified_value_expr = modify_bits(ModifyBitsParams {
+                extract_params: ExtractBitsParams {
+                    value: quote! { self.storage },
+                    value_type: storage_type.clone(),
+                    extract_offset: offset,
+                    extract_len: len,
+                },
+                new_value: quote! { <#ty as ::bitpiece::BitPiece>::Converter::to_bits(new_value) },
+            });
+
+            quote! {
+                #vis const fn #with_ident (mut self, new_value: #ty) -> Self {
+                    self.storage = #modified_value_expr;
+                    self
+                }
+            }
+        })
+        .collect()
 }
 
 fn gen_field_access_noshift_fns(
