@@ -17,6 +17,7 @@ name = "bitpiece_macros"
 version = "0.4.0"
 dependencies = [
  "convert_case",
+ "enum_all_values_const",
  "heck",
  "itertools",
  "proc-macro2",
@@ -45,6 +46,17 @@ name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
+
+[[package]]
+name = "enum_all_values_const"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11cc44337e55367113fd34b00b361461317eb35859c5e08e473cb726884743d7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "heck"

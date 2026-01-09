@@ -5,6 +5,7 @@ mod utils;
 
 use std::{collections::HashSet, str::FromStr};
 
+use enum_all_values_const::AllValues;
 use enums::bitpiece_enum;
 use heck::{ToSnakeCase, ToUpperCamelCase};
 use itertools::Itertools;
@@ -28,7 +29,7 @@ pub fn bitpiece(
     impl_bitpiece(args, input)
 }
 
-#[derive(EnumString, VariantNames, Hash, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(EnumString, VariantNames, AllValues, Hash, Clone, Copy, Debug, PartialEq, Eq)]
 enum OptIn {
     FieldGet,
     FieldSet,
@@ -45,12 +46,14 @@ enum OptIn {
 
 #[derive(EnumString, VariantNames, Hash, Clone, Copy, Debug, PartialEq, Eq)]
 enum OptInPreset {
-    Default,
+    Basic,
+    All,
 }
 impl OptInPreset {
     fn opt_ins(&self) -> &'static [OptIn] {
         match self {
-            OptInPreset::Default => &[OptIn::FieldGet, OptIn::FieldSet],
+            OptInPreset::Basic => &[OptIn::FieldGet, OptIn::FieldSet],
+            OptInPreset::All => OptIn::ALL_VALUES.as_slice(),
         }
     }
 }
@@ -80,8 +83,12 @@ impl Parse for MacroArg {
             .iter()
             .map(|v| format!("`{}`", v.to_snake_case()))
             .join(", ");
+        let preset_names: String = OptInPreset::VARIANTS
+            .iter()
+            .map(|v| format!("`{}`", v.to_snake_case()))
+            .join(", ");
         let unknown_macro_arg_err = format!(
-            "unknown macro argument, expected an integer bit-length (e.g. `32`) or an opt-in flag ({opt_in_names})"
+            "unknown macro argument, expected an integer bit-length (e.g. `32`), an opt-in flag ({opt_in_names}), or an opt-in preset ({preset_names})"
         );
 
         // explicit bit length
