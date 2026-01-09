@@ -8,6 +8,7 @@ enum BitPieceEnum {
     Variant2 = 2,
     Variant3 = 3,
 }
+bitpiece_check_full_impl! {BitPieceEnum}
 
 #[bitpiece(3)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,6 +16,7 @@ struct BitPieceA {
     x: bool,
     y: BitPieceEnum,
 }
+bitpiece_check_full_impl! {BitPieceA}
 
 #[bitpiece(35)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +24,7 @@ struct BitPieceB {
     x: u32,
     y: B3,
 }
+bitpiece_check_full_impl! {BitPieceB}
 
 #[bitpiece(38)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,6 +32,7 @@ struct BitPieceComplex {
     a: BitPieceA,
     b: BitPieceB,
 }
+bitpiece_check_full_impl! {BitPieceComplex}
 
 #[test]
 fn bit_extraction() {
@@ -139,6 +143,7 @@ enum NonExhaustiveEnum {
     Variant77 = 77,
     Variant120 = 120,
 }
+bitpiece_check_full_impl! {NonExhaustiveEnum}
 
 #[test]
 fn valid_variants_of_non_exhastive_enum() {
@@ -210,6 +215,7 @@ enum NonExhaustiveEnumExplicitBitLen {
     Variant77 = 77,
     Variant120 = 120,
 }
+bitpiece_check_full_impl! {NonExhaustiveEnumExplicitBitLen}
 
 #[test]
 fn non_exhaustive_enum_explicit_bit_len() {
@@ -229,6 +235,7 @@ struct NonExhaustiveEnumContainer1 {
     b: NonExhaustiveEnum,
     c: B3,
 }
+bitpiece_check_full_impl! {NonExhaustiveEnumContainer1}
 
 #[bitpiece(27)]
 struct NonExhaustiveEnumContainer2 {
@@ -236,6 +243,7 @@ struct NonExhaustiveEnumContainer2 {
     b: NonExhaustiveEnumContainer1,
     c: B7,
 }
+bitpiece_check_full_impl! {NonExhaustiveEnumContainer2}
 
 #[test]
 fn non_exhaustive_enum_container() {
@@ -280,6 +288,7 @@ struct StructWithSigned {
     b: i8,
     c: bool,
 }
+bitpiece_check_full_impl! {StructWithSigned}
 
 #[bitpiece(51)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -289,6 +298,7 @@ struct StructWithSigned2 {
     c: i32,
     d: B2,
 }
+bitpiece_check_full_impl! {StructWithSigned2}
 
 #[test]
 fn signed_i8_extraction() {
@@ -387,6 +397,7 @@ struct StructWithSb {
     c: SB7,
     d: B3,
 }
+bitpiece_check_full_impl! {StructWithSb}
 
 #[test]
 fn sb_type_extraction() {
@@ -494,6 +505,7 @@ struct StructWithSbTryFrom {
     b: SB3,
     c: B2,
 }
+bitpiece_check_full_impl! {StructWithSbTryFrom}
 
 #[test]
 fn sb_type_try_from_bits() {
