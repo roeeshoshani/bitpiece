@@ -12,6 +12,7 @@ use crate::*;
 /// so, instead of using generic, we just use an enum, since we know all possible types in advance anyway.
 ///
 /// this allows the code to be generic while also allowing it to work in const contexts.
+#[derive(Debug)]
 pub enum BitPieceStorageMutRef<'a> {
     U64(&'a mut u64),
     U32(&'a mut u32),
@@ -51,6 +52,7 @@ impl<'a> BitPieceStorageMutRef<'a> {
 
 /// a convenience type for interacting with the bits of an underlying storage type, starting at a specific bit index.
 /// this is useful for implementing mutable references to bitpieces.
+#[derive(Debug)]
 pub struct BitsMut<'s> {
     pub storage: BitPieceStorageMutRef<'s>,
     pub start_bit_index: usize,
@@ -108,6 +110,7 @@ pub trait BitPieceMutRef<'s> {
 #[macro_export]
 macro_rules! bitpiece_define_mut_ref_type {
     {$t: ty, $mut_ref_ty_name: ident, $($vis: tt)?} => {
+        #[derive(Debug)]
         $($vis)? struct $mut_ref_ty_name<'s>(pub $crate::BitsMut<'s>);
         impl<'s> $mut_ref_ty_name<'s> {
             pub const fn new(storage: $crate::BitPieceStorageMutRef<'s>, start_bit_index: usize) -> Self {
