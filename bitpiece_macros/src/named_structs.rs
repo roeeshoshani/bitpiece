@@ -111,7 +111,8 @@ pub fn bitpiece_named_struct(
 
         #explicit_bit_len_assertion
 
-        #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
+        #(#attrs)*
+        #[derive(Clone, Copy)]
         #[repr(transparent)]
         #vis struct #ident {
             pub storage: #storage_type,
@@ -145,6 +146,7 @@ pub fn bitpiece_named_struct(
         OptIn::FieldsStruct,
         quote! {
             #(#attrs)*
+            #[derive(Clone, Copy)]
             #vis struct #fields_struct_ident #fields
 
             impl ::core::convert::From<#fields_struct_ident> for #ident {

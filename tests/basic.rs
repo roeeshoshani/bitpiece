@@ -1,7 +1,7 @@
 use bitpiece::*;
 
 #[bitpiece(2, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum BitPieceEnum {
     Variant0 = 0,
     Variant1 = 1,
@@ -11,7 +11,7 @@ enum BitPieceEnum {
 bitpiece_check_full_impl! {BitPieceEnum, true}
 
 #[bitpiece(3, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct BitPieceA {
     x: bool,
     y: BitPieceEnum,
@@ -19,7 +19,7 @@ struct BitPieceA {
 bitpiece_check_full_impl! {BitPieceA, true}
 
 #[bitpiece(35, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct BitPieceB {
     x: u32,
     y: B3,
@@ -27,14 +27,14 @@ struct BitPieceB {
 bitpiece_check_full_impl! {BitPieceB, true}
 
 #[bitpiece(35, get)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct BitPiecePartial {
     x: u32,
     y: B3,
 }
 
 #[bitpiece(38, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct BitPieceComplex {
     a: BitPieceA,
     b: BitPieceB,
@@ -156,7 +156,7 @@ fn bit_extraction_noshift() {
 }
 
 #[bitpiece(all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum NonExhaustiveEnum {
     Variant0 = 0,
     Variant77 = 77,
@@ -228,7 +228,7 @@ fn b_types_try_from_bits() {
 }
 
 #[bitpiece(16, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum NonExhaustiveEnumExplicitBitLen {
     Variant0 = 0,
     Variant77 = 77,
@@ -249,6 +249,7 @@ fn non_exhaustive_enum_explicit_bit_len() {
 }
 
 #[bitpiece(12, all)]
+#[derive(Debug, PartialEq, Eq)]
 struct NonExhaustiveEnumContainer1 {
     a: B2,
     b: NonExhaustiveEnum,
@@ -257,6 +258,7 @@ struct NonExhaustiveEnumContainer1 {
 bitpiece_check_full_impl! {NonExhaustiveEnumContainer1, false}
 
 #[bitpiece(27, all)]
+#[derive(Debug, PartialEq, Eq)]
 struct NonExhaustiveEnumContainer2 {
     a: u8,
     b: NonExhaustiveEnumContainer1,
@@ -301,7 +303,7 @@ fn non_exhaustive_enum_container() {
 }
 
 #[bitpiece(12, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct StructWithSigned {
     a: B3,
     b: i8,
@@ -310,7 +312,7 @@ struct StructWithSigned {
 bitpiece_check_full_impl! {StructWithSigned, true}
 
 #[bitpiece(51, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct StructWithSigned2 {
     a: i16,
     b: bool,
@@ -409,7 +411,7 @@ fn signed_from_to_fields() {
 
 // Bit layout (LSB to MSB): [a: SB5 (5), b: bool (1), c: SB7 (7), d: B3 (3)]
 #[bitpiece(16, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct StructWithSb {
     a: SB5,
     b: bool,
@@ -518,7 +520,7 @@ fn sb_type_from_to_fields() {
 
 // Bit layout (LSB to MSB): [a: B2 (2), b: SB3 (3), c: B2 (2)]
 #[bitpiece(7, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct StructWithSbTryFrom {
     a: B2,
     b: SB3,
