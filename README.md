@@ -33,7 +33,7 @@ use bitpiece::*;
 
 // Define a 2-bit enum
 #[bitpiece(2, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum Priority {
     Low = 0,
     Medium = 1,
@@ -43,7 +43,7 @@ enum Priority {
 
 // Define an 8-bit struct containing multiple fields
 #[bitpiece(8, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct StatusByte {
     enabled: bool,      // 1 bit
     priority: Priority, // 2 bits
@@ -75,6 +75,7 @@ fn main() {
 - [Defining Bitfield Enums](#defining-bitfield-enums)
 - [Generated Methods and Types](#generated-methods-and-types)
 - [Opt-in Features](#opt-in-features)
+- [Attributes and Derives](#attributes-and-derives)
 - [Working with Fields](#working-with-fields)
 - [Nested Bitfields](#nested-bitfields)
 - [Signed Types](#signed-types)
@@ -185,7 +186,7 @@ Structs are the primary way to define composite bitfields. Fields are packed in 
 use bitpiece::*;
 
 #[bitpiece(16, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct Instruction {
     opcode: B4,    // Bits 0-3 (LSB)
     reg_a: B3,     // Bits 4-6
@@ -228,7 +229,7 @@ When all possible bit patterns map to valid variants:
 use bitpiece::*;
 
 #[bitpiece(2, all)]  // 2 bits = 4 possible values
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum Direction {
     North = 0,
     East = 1,
@@ -249,7 +250,7 @@ When not all bit patterns are valid variants:
 use bitpiece::*;
 
 #[bitpiece(all)]  // Auto-calculated: 7 bits needed for value 100
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum ErrorCode {
     Success = 0,
     NotFound = 10,
@@ -274,7 +275,7 @@ You can specify a larger bit length than required:
 use bitpiece::*;
 
 #[bitpiece(16, all)]  // Use 16 bits even though values fit in fewer
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum Command {
     Nop = 0,
     Load = 1,
@@ -372,7 +373,7 @@ assert_eq!(SB8::MAX.get(), 127);     // Maximum value
 
 ```rust
 #[bitpiece(all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum Sparse {
     A = 10,
     B = 50,
@@ -434,6 +435,64 @@ struct Full { /* ... */ }
 #[bitpiece(8, get, with, fields_struct)]
 struct Custom { /* ... */ }
 ```
+
+## Attributes and Derives
+
+When you apply `#[bitpiece]` to a type, any attributes you place on the type (such as `#[derive(...)]`) are applied to both the main generated type and the generated fields struct (if `fields_struct` is enabled).
+
+### Automatic Clone and Copy
+
+The `Clone` and `Copy` traits are **automatically derived** on all bitpiece types. You do not need to (and should not) manually derive these traits:
+
+```rust
+use bitpiece::*;
+
+// Clone and Copy are automatically derived - don't include them!
+#[bitpiece(8, all)]
+#[derive(Debug, PartialEq, Eq)]  // No Clone, Copy needed
+struct MyStruct {
+    a: B4,
+    b: B4,
+}
+
+// Same for enums
+#[bitpiece(2, all)]
+#[derive(Debug, PartialEq, Eq)]  // No Clone, Copy needed
+enum MyEnum {
+    A = 0,
+    B = 1,
+    C = 2,
+    D = 3,
+}
+```
+
+This automatic derivation ensures that all bitpiece types satisfy the `Copy` bound required by the `BitPiece` trait.
+
+### Deriving Additional Traits
+
+You can derive additional traits like `Debug`, `PartialEq`, `Eq`, `Hash`, or even third-party traits like `serde::Serialize` and `serde::Deserialize`:
+
+```rust
+use bitpiece::*;
+
+#[bitpiece(16, all)]
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct Packet {
+    version: B4,
+    flags: B4,
+    length: u8,
+}
+
+// With serde (requires serde feature/dependency)
+// #[bitpiece(8, all)]
+// #[derive(Debug, serde::Serialize, serde::Deserialize)]
+// struct Config {
+//     mode: B4,
+//     level: B4,
+// }
+```
+
+These attributes are applied to both the main `Packet` type and the `PacketFields` struct, allowing you to serialize/deserialize both types consistently.
 
 ## Working with Fields
 
@@ -535,14 +594,14 @@ Bitfield types can be nested within other bitfields:
 use bitpiece::*;
 
 #[bitpiece(4, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct Inner {
     x: B2,
     y: B2,
 }
 
 #[bitpiece(12, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct Outer {
     a: Inner,    // 4 bits
     b: Inner,    // 4 bits
@@ -722,7 +781,7 @@ fn print_bitpiece_info<T: BitPiece + core::fmt::Debug>(value: T) {
 use bitpiece::*;
 
 #[bitpiece(all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum Status {
     Ok = 0,
     Error = 1,
@@ -769,7 +828,7 @@ When `fields_struct` is enabled, a companion struct is generated for convenient 
 
 ```rust
 #[bitpiece(8, all)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct Packet {
     version: B2,
     flags: B3,
