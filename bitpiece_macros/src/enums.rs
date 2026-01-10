@@ -176,6 +176,7 @@ pub fn bitpiece_enum(
         #vis const #bit_len_ident: usize = (#bit_len_calc) as usize;
         #vis type #storage_type_ident = #storage_type_calc;
 
+        #[derive(Clone, Copy)]
         #input
 
         #implementation
