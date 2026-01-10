@@ -1,6 +1,6 @@
 use bitpiece::*;
 
-#[bitpiece(2)]
+#[bitpiece(2, all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BitPieceEnum {
     Variant0 = 0,
@@ -8,27 +8,38 @@ enum BitPieceEnum {
     Variant2 = 2,
     Variant3 = 3,
 }
+bitpiece_check_full_impl! {BitPieceEnum, true}
 
-#[bitpiece(3)]
+#[bitpiece(3, all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct BitPieceA {
     x: bool,
     y: BitPieceEnum,
 }
+bitpiece_check_full_impl! {BitPieceA, true}
 
-#[bitpiece(35)]
+#[bitpiece(35, all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct BitPieceB {
     x: u32,
     y: B3,
 }
+bitpiece_check_full_impl! {BitPieceB, true}
 
-#[bitpiece(38)]
+#[bitpiece(35, get)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct BitPiecePartial {
+    x: u32,
+    y: B3,
+}
+
+#[bitpiece(38, all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct BitPieceComplex {
     a: BitPieceA,
     b: BitPieceB,
 }
+bitpiece_check_full_impl! {BitPieceComplex, true}
 
 #[test]
 fn bit_extraction() {
@@ -43,10 +54,20 @@ fn bit_extraction() {
 
 #[test]
 fn bit_modification() {
-    let mut value = BitPieceA::zeroes();
+    let mut value = BitPieceA::ZEROES;
     assert_eq!(value.x(), false);
     assert_eq!(value.y(), BitPieceEnum::Variant0);
-    assert_eq!(value.storage, 0);
+    assert_eq!(value.storage, 0b000);
+
+    let mod_value = value.with_y(BitPieceEnum::Variant3);
+    assert_eq!(mod_value.x(), false);
+    assert_eq!(mod_value.y(), BitPieceEnum::Variant3);
+    assert_eq!(mod_value.storage, 0b110);
+
+    let mod_value = value.with_y(BitPieceEnum::Variant3).with_x(true);
+    assert_eq!(mod_value.x(), true);
+    assert_eq!(mod_value.y(), BitPieceEnum::Variant3);
+    assert_eq!(mod_value.storage, 0b111);
 
     value.set_x(true);
     assert_eq!(value.x(), true);
@@ -96,11 +117,13 @@ fn from_to_fields() {
         a: BitPieceAFields {
             x: true,
             y: BitPieceEnum::Variant1,
-        },
+        }
+        .into(),
         b: BitPieceBFields {
             x: 0b1111100,
             y: B3::new(0b010),
-        },
+        }
+        .into(),
     };
     let value = BitPieceComplex::from_fields(fields);
 
@@ -117,7 +140,7 @@ fn from_to_fields() {
 
 #[test]
 fn zeroed() {
-    let zeroed = BitPieceComplex::zeroes();
+    let zeroed = BitPieceComplex::ZEROES;
     assert_eq!(zeroed.storage, 0);
 }
 
@@ -132,13 +155,14 @@ fn bit_extraction_noshift() {
     assert_eq!(BitPieceA::from_bits(0b101).y_noshift(), 0b100,);
 }
 
-#[bitpiece]
+#[bitpiece(all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum NonExhaustiveEnum {
     Variant0 = 0,
     Variant77 = 77,
     Variant120 = 120,
 }
+bitpiece_check_full_impl! {NonExhaustiveEnum, false}
 
 #[test]
 fn valid_variants_of_non_exhastive_enum() {
@@ -203,13 +227,14 @@ fn b_types_try_from_bits() {
     assert_eq!(B6::try_from_bits(241), None);
 }
 
-#[bitpiece(16)]
+#[bitpiece(16, all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum NonExhaustiveEnumExplicitBitLen {
     Variant0 = 0,
     Variant77 = 77,
     Variant120 = 120,
 }
+bitpiece_check_full_impl! {NonExhaustiveEnumExplicitBitLen, false}
 
 #[test]
 fn non_exhaustive_enum_explicit_bit_len() {
@@ -223,19 +248,21 @@ fn non_exhaustive_enum_explicit_bit_len() {
     assert_eq!(NonExhaustiveEnumExplicitBitLen::try_from_bits(1500), None);
 }
 
-#[bitpiece(12)]
+#[bitpiece(12, all)]
 struct NonExhaustiveEnumContainer1 {
     a: B2,
     b: NonExhaustiveEnum,
     c: B3,
 }
+bitpiece_check_full_impl! {NonExhaustiveEnumContainer1, false}
 
-#[bitpiece(27)]
+#[bitpiece(27, all)]
 struct NonExhaustiveEnumContainer2 {
     a: u8,
     b: NonExhaustiveEnumContainer1,
     c: B7,
 }
+bitpiece_check_full_impl! {NonExhaustiveEnumContainer2, false}
 
 #[test]
 fn non_exhaustive_enum_container() {
@@ -273,15 +300,16 @@ fn non_exhaustive_enum_container() {
     });
 }
 
-#[bitpiece(12)]
+#[bitpiece(12, all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct StructWithSigned {
     a: B3,
     b: i8,
     c: bool,
 }
+bitpiece_check_full_impl! {StructWithSigned, true}
 
-#[bitpiece(51)]
+#[bitpiece(51, all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct StructWithSigned2 {
     a: i16,
@@ -289,6 +317,7 @@ struct StructWithSigned2 {
     c: i32,
     d: B2,
 }
+bitpiece_check_full_impl! {StructWithSigned2, true}
 
 #[test]
 fn signed_i8_extraction() {
@@ -326,7 +355,7 @@ fn signed_i8_extraction() {
 
 #[test]
 fn signed_i8_modification() {
-    let mut value = StructWithSigned::zeroes();
+    let mut value = StructWithSigned::ZEROES;
     assert_eq!(value.storage, 0);
     assert_eq!(value.a(), B3::new(0));
     assert_eq!(value.b(), 0i8);
@@ -379,7 +408,7 @@ fn signed_from_to_fields() {
 }
 
 // Bit layout (LSB to MSB): [a: SB5 (5), b: bool (1), c: SB7 (7), d: B3 (3)]
-#[bitpiece(16)]
+#[bitpiece(16, all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct StructWithSb {
     a: SB5,
@@ -387,6 +416,7 @@ struct StructWithSb {
     c: SB7,
     d: B3,
 }
+bitpiece_check_full_impl! {StructWithSb, true}
 
 #[test]
 fn sb_type_extraction() {
@@ -429,7 +459,7 @@ fn sb_type_extraction() {
 
 #[test]
 fn sb_type_modification() {
-    let mut value = StructWithSb::zeroes();
+    let mut value = StructWithSb::ZEROES;
     assert_eq!(value.storage, 0);
     assert_eq!(value.a(), SB5::new(0));
     assert_eq!(value.b(), false);
@@ -487,13 +517,14 @@ fn sb_type_from_to_fields() {
 }
 
 // Bit layout (LSB to MSB): [a: B2 (2), b: SB3 (3), c: B2 (2)]
-#[bitpiece(7)]
+#[bitpiece(7, all)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct StructWithSbTryFrom {
     a: B2,
     b: SB3,
     c: B2,
 }
+bitpiece_check_full_impl! {StructWithSbTryFrom, true}
 
 #[test]
 fn sb_type_try_from_bits() {

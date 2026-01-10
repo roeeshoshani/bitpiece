@@ -1,7 +1,10 @@
 use quote::{quote, quote_spanned};
 use syn::Generics;
 
-use crate::newtypes::{BitLenExpr, TypeExpr};
+use crate::{
+    newtypes::{BitLenExpr, StorageTypeExpr, TypeExpr},
+    MacroArgs, OptIn,
+};
 
 pub fn not_supported_err_span(what: &str, span: proc_macro2::Span) -> proc_macro::TokenStream {
     quote_spanned! {
@@ -38,22 +41,28 @@ pub fn gen_explicit_bit_length_assertion(
 }
 
 /// parameters for generating an implementation of the `BitPiece` trait.
-pub struct BitPieceGenImplParams {
+pub struct BitPieceGenImplParams<'a> {
     /// the identifier of the type for which the trait is to be implemented.
-    pub type_ident: syn::Ident,
+    pub type_ident: &'a syn::Ident,
+
+    /// the visibility of the type for which the trait is to be implemented.
+    pub type_vis: &'a syn::Visibility,
+
+    /// the arguments passed to the macro invokation.
+    pub macro_args: &'a MacroArgs,
 
     /// the mutable bit access type.
-    pub mut_type: proc_macro2::TokenStream,
+    pub mut_type_ident: &'a syn::Ident,
 
     /// the bit length of the type.
-    pub bit_len: BitLenExpr,
+    pub bit_len: &'a BitLenExpr,
 
     /// the bits storage type of this type.
-    pub storage_type: TypeExpr,
+    pub storage_type: &'a StorageTypeExpr,
 
     /// the fields type of this type.
     /// this is the type which represents the expanded view of this bitpiece.
-    pub fields_type: TypeExpr,
+    pub fields_type: &'a TypeExpr,
 
     /// code for converting this type to its field values.
     /// this will be used as the body of the `to_fields` method.
@@ -63,55 +72,126 @@ pub struct BitPieceGenImplParams {
     /// this will be used as the body of the `from_fields` method.
     pub from_fields_code: proc_macro2::TokenStream,
 
-    /// code for serializing this type.
+    /// code converting this type to its raw bits.
     /// this will be used as the body of the `to_bits` method.
-    pub serialization_code: proc_macro2::TokenStream,
+    pub to_bits_code: proc_macro2::TokenStream,
 
-    /// code for trying to deserialize this type.
+    /// code for constructing this type from its raw bits.
     /// this will be used as the body of the `try_from_bits` method.
-    pub try_deserialization_code: Option<proc_macro2::TokenStream>,
+    pub try_from_bits_code: proc_macro2::TokenStream,
+
+    /// an instantiation of this type with all bits sets to zero (if possible).
+    pub zeroes: proc_macro2::TokenStream,
+
+    /// an instantiation of this type with all bits sets to one (if possible).
+    pub ones: proc_macro2::TokenStream,
+
+    /// an instantiation of this type with the min possible value.
+    pub min: proc_macro2::TokenStream,
+
+    /// an instantiation of this type with the max possible value.
+    pub max: proc_macro2::TokenStream,
 }
 
 /// generates the final implementation of the `BitPiece` trait given the implementation details.
-pub fn bitpiece_gen_impl(params: BitPieceGenImplParams) -> proc_macro2::TokenStream {
+pub fn bitpiece_gen_impl<'a>(params: BitPieceGenImplParams<'a>) -> proc_macro2::TokenStream {
     let BitPieceGenImplParams {
         type_ident,
-        mut_type,
+        type_vis,
+        macro_args,
+        mut_type_ident,
         bit_len,
         fields_type,
         storage_type,
         to_fields_code,
         from_fields_code,
-        serialization_code,
-        try_deserialization_code,
+        to_bits_code,
+        try_from_bits_code,
+        zeroes,
+        ones,
+        min,
+        max,
     } = params;
-    let try_from_bits_fn = match try_deserialization_code {
-        Some(try_deserialization_code) => {
-            quote! {
-                fn try_from_bits(bits: Self::Bits) -> Option<Self> {
-                    #try_deserialization_code
-                }
-            }
-        }
-        None => quote! {},
-    };
-    quote! {
+    let base_code = quote! {
         #[automatically_derived]
         impl ::bitpiece::BitPiece for #type_ident {
             const BITS: usize = (#bit_len);
+            const ZEROES: Self = #zeroes;
+            const ONES: Self = #ones;
+            const MIN: Self = #min;
+            const MAX: Self = #max;
             type Bits = #storage_type;
-            type Fields = #fields_type;
-            type Mut<'s, S: ::bitpiece::BitStorage + 's> = #mut_type;
-            fn from_fields(fields: Self::Fields) -> Self {
-                #from_fields_code
+            type Converter = Self;
+            fn try_from_bits(bits: Self::Bits) -> Option<Self> {
+                Self::try_from_bits(bits)
             }
-            fn to_fields(self) -> Self::Fields {
-                #to_fields_code
+            fn from_bits(bits: Self::Bits) -> Self {
+                Self::from_bits(bits)
             }
-            #try_from_bits_fn
             fn to_bits(self) -> Self::Bits {
-                #serialization_code
+                self.to_bits()
             }
         }
+
+        impl #type_ident {
+            pub const fn try_from_bits(bits: #storage_type) -> Option<Self> {
+                #try_from_bits_code
+            }
+            pub const fn from_bits(bits: #storage_type) -> Self {
+                Self::try_from_bits(bits).unwrap()
+            }
+            pub const fn to_bits(self) -> #storage_type {
+                #to_bits_code
+            }
+        }
+    };
+    let opt_mut_struct_code = macro_args.filter_opt_in_code(
+        OptIn::MutStruct,
+        quote! {
+            #[automatically_derived]
+            impl ::bitpiece::BitPieceHasMutRef for #type_ident {
+                type MutRef<'s> = #mut_type_ident<'s>;
+            }
+            ::bitpiece::bitpiece_define_mut_ref_type! { #type_ident, #mut_type_ident, #type_vis }
+        },
+    );
+    let opt_fields_struct_code = macro_args.filter_opt_in_code(
+        OptIn::FieldsStruct,
+        quote! {
+            #[automatically_derived]
+            impl ::bitpiece::BitPieceHasFields for #type_ident {
+                type Fields = #fields_type;
+                fn from_fields(fields: Self::Fields) -> Self {
+                    Self::from_fields(fields)
+                }
+                fn to_fields(self) -> Self::Fields {
+                    self.to_fields()
+                }
+            }
+            impl #type_ident {
+                pub const fn from_fields(fields: #fields_type) -> Self {
+                    #from_fields_code
+                }
+                pub const fn to_fields(self) -> #fields_type {
+                    #to_fields_code
+                }
+            }
+        },
+    );
+    let opt_const_eq_code = macro_args.filter_opt_in_code(
+        OptIn::ConstEq,
+        quote! {
+            impl #type_ident {
+                pub const fn const_eq(a: Self, b: Self) -> bool {
+                    a.to_bits() == b.to_bits()
+                }
+            }
+        },
+    );
+    quote! {
+        #base_code
+        #opt_mut_struct_code
+        #opt_fields_struct_code
+        #opt_const_eq_code
     }
 }
