@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "bitpiece"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "bitpiece_macros",
  "const_for",
@@ -14,7 +14,7 @@ dependencies = [
 
 [[package]]
 name = "bitpiece_macros"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "convert_case",
  "enum_all_values_const",
