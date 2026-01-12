@@ -19,15 +19,6 @@ A powerful Rust crate for working with bitfields. Define compact, type-safe bitf
 
 ## Quick Start
 
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-bitpiece = "1.0"
-```
-
-Basic usage:
-
 ```rust
 use bitpiece::*;
 
