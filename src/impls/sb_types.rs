@@ -1,5 +1,28 @@
 use crate::*;
 
+macro_rules! sb_type_impl_from_int_type {
+    { $sb_type_ident: ident, $sb_type_storage_signed: ty, $uint_type: ty } => {
+        impl From<$uint_type> for $sb_type_ident {
+            fn from(x: $uint_type) -> Self {
+                Self::new(x as $sb_type_storage_signed)
+            }
+        }
+    }
+}
+
+macro_rules! sb_type_impl_from_int_types {
+    { $sb_type_ident: ident, $sb_type_storage_signed: ty } => {
+        sb_type_impl_from_int_type! { $sb_type_ident, $sb_type_storage_signed, u8 }
+        sb_type_impl_from_int_type! { $sb_type_ident, $sb_type_storage_signed, u16 }
+        sb_type_impl_from_int_type! { $sb_type_ident, $sb_type_storage_signed, u32 }
+        sb_type_impl_from_int_type! { $sb_type_ident, $sb_type_storage_signed, u64 }
+        sb_type_impl_from_int_type! { $sb_type_ident, $sb_type_storage_signed, i8 }
+        sb_type_impl_from_int_type! { $sb_type_ident, $sb_type_storage_signed, i16 }
+        sb_type_impl_from_int_type! { $sb_type_ident, $sb_type_storage_signed, i32 }
+        sb_type_impl_from_int_type! { $sb_type_ident, $sb_type_storage_signed, i64 }
+    }
+}
+
 macro_rules! define_sb_type {
     { $bit_len: literal, $ident: ident, $storage: ty, $storage_signed: ty, $mut_ref_ty_name: ident } => {
         /// a type used to represent a field with a specific amount of bits.
@@ -23,6 +46,8 @@ macro_rules! define_sb_type {
                 <Self as BitPiece>::Converter::to_bits(self)
             }
         }
+
+        sb_type_impl_from_int_types! { $ident, $storage_signed }
 
         impl BitPieceHasFields for $ident {
             type Fields = Self;

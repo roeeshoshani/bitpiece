@@ -1,5 +1,28 @@
 use crate::*;
 
+macro_rules! b_type_impl_from_int_type {
+    { $b_type_ident: ident, $b_type_storage: ty, $uint_type: ty } => {
+        impl From<$uint_type> for $b_type_ident {
+            fn from(x: $uint_type) -> Self {
+                Self::new(x as $b_type_storage)
+            }
+        }
+    }
+}
+
+macro_rules! b_type_impl_from_int_types {
+    { $b_type_ident: ident, $b_type_storage: ty } => {
+        b_type_impl_from_int_type! { $b_type_ident, $b_type_storage, u8 }
+        b_type_impl_from_int_type! { $b_type_ident, $b_type_storage, u16 }
+        b_type_impl_from_int_type! { $b_type_ident, $b_type_storage, u32 }
+        b_type_impl_from_int_type! { $b_type_ident, $b_type_storage, u64 }
+        b_type_impl_from_int_type! { $b_type_ident, $b_type_storage, i8 }
+        b_type_impl_from_int_type! { $b_type_ident, $b_type_storage, i16 }
+        b_type_impl_from_int_type! { $b_type_ident, $b_type_storage, i32 }
+        b_type_impl_from_int_type! { $b_type_ident, $b_type_storage, i64 }
+    }
+}
+
 macro_rules! define_b_type {
     { $bit_len: literal, $ident: ident, $storage: ty, $mut_ref_ty_name: ident } => {
         /// a type used to represent a field with a specific amount of bits.
@@ -32,6 +55,8 @@ macro_rules! define_b_type {
                 <Self as BitPiece>::Converter::to_bits(self)
             }
         }
+
+        b_type_impl_from_int_types! { $ident, $storage }
 
         impl BitPieceHasMutRef for $ident {
             type MutRef<'s> = $mut_ref_ty_name<'s>;
