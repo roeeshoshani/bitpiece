@@ -1,4 +1,4 @@
-/// Common test utilities shared across test modules.
+//! Common test utilities shared across test modules.
 
 /// Expects the provided closure to panic. If it doesn't panic, this function panics.
 pub fn expect_panic<F: FnOnce() + std::panic::UnwindSafe>(f: F) {

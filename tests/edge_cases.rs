@@ -1,5 +1,9 @@
 //! Tests for edge cases and error handling.
 
+// The digits of the binary literals in this file are deliberately grouped according to the bit fields that they
+// represent, and not into groups of equal size.
+#![allow(clippy::unusual_byte_groupings)]
+
 mod common;
 
 use bitpiece::*;
@@ -21,10 +25,10 @@ fn one_bit_struct() {
     assert_eq!(OneBit::BITS, 1);
 
     let val = OneBit::from_bits(0);
-    assert_eq!(val.bit(), false);
+    assert!(!val.bit());
 
     let val = OneBit::from_bits(1);
-    assert_eq!(val.bit(), true);
+    assert!(val.bit());
 }
 
 #[bitpiece(64, all)]
@@ -128,7 +132,7 @@ fn all_zeros_pattern() {
     let val = MixedFields::from_bits(0);
     assert_eq!(val.a(), B4::new(0));
     assert_eq!(val.b(), SB4::new(0));
-    assert_eq!(val.c(), false);
+    assert!(!val.c());
     assert_eq!(val.d(), B7::new(0));
 }
 
@@ -137,7 +141,7 @@ fn all_ones_pattern() {
     let val = MixedFields::from_bits(0xFFFF);
     assert_eq!(val.a(), B4::new(15));
     assert_eq!(val.b(), SB4::new(-1)); // All 1s in signed = -1
-    assert_eq!(val.c(), true);
+    assert!(val.c());
     assert_eq!(val.d(), B7::new(127));
 }
 
@@ -156,7 +160,7 @@ fn alternating_bits_pattern() {
     let val = MixedFields::from_bits(0b0101010101010101);
     assert_eq!(val.a(), B4::new(0b0101));
     assert_eq!(val.b(), SB4::new(5)); // 0b0101 in 4-bit signed = 5
-    assert_eq!(val.c(), true); // bit 8 is 1
+    assert!(val.c()); // bit 8 is 1
     assert_eq!(val.d(), B7::new(0b0101010));
 
     // 0b1010101010101010
@@ -167,7 +171,7 @@ fn alternating_bits_pattern() {
     let val = MixedFields::from_bits(0b1010101010101010);
     assert_eq!(val.a(), B4::new(0b1010));
     assert_eq!(val.b(), SB4::new(-6)); // 0b1010 in 4-bit signed = -6
-    assert_eq!(val.c(), false); // bit 8 is 0
+    assert!(!val.c()); // bit 8 is 0
     assert_eq!(val.d(), B7::new(0b1010101));
 }
 
@@ -190,11 +194,11 @@ fn field_at_maximum_offset() {
 
     let val = FieldAtEnd::from_bits(1u64 << 63);
     assert_eq!(val.padding(), B63::new(0));
-    assert_eq!(val.last_bit(), true);
+    assert!(val.last_bit());
 
     let val = FieldAtEnd::from_bits((1u64 << 63) - 1);
     assert_eq!(val.padding(), B63::MAX);
-    assert_eq!(val.last_bit(), false);
+    assert!(!val.last_bit());
 }
 
 // =============================================================================
@@ -624,12 +628,12 @@ bitpiece_check_full_impl! {ManyFields, true}
 fn many_fields_struct() {
     let val = ManyFields::from_bits(0b1010101010101010);
 
-    assert_eq!(val.a(), false);
-    assert_eq!(val.b(), true);
-    assert_eq!(val.c(), false);
-    assert_eq!(val.d(), true);
+    assert!(!val.a());
+    assert!(val.b());
+    assert!(!val.c());
+    assert!(val.d());
     // ... pattern continues
-    assert_eq!(val.p(), true);
+    assert!(val.p());
 }
 
 #[test]
@@ -637,11 +641,11 @@ fn many_fields_independence() {
     let mut val = ManyFields::ZEROES;
 
     val.set_a(true);
-    assert_eq!(val.a(), true);
-    assert_eq!(val.b(), false);
+    assert!(val.a());
+    assert!(!val.b());
 
     val.set_p(true);
-    assert_eq!(val.a(), true);
-    assert_eq!(val.p(), true);
-    assert_eq!(val.o(), false);
+    assert!(val.a());
+    assert!(val.p());
+    assert!(!val.o());
 }

@@ -1,3 +1,18 @@
+<!-- cargo-reedme: start -->
+
+<!-- cargo-reedme: info-start
+
+    Do not edit this region by hand
+    ===============================
+
+    This region was generated from Rust documentation comments by `cargo-reedme` using this command:
+
+        cargo +nightly reedme
+
+    for more info: https://github.com/nik-rev/cargo-reedme
+
+cargo-reedme: info-end -->
+
 # bitpiece
 
 A powerful Rust crate for working with bitfields. Define compact, type-safe bitfield structures with automatic bit packing and extraction.
@@ -44,16 +59,16 @@ struct StatusByte {
 fn main() {
     // Create from raw bits
     let status = StatusByte::from_bits(0b10101_01_1);
-    
+     
     assert_eq!(status.enabled(), true);
     assert_eq!(status.priority(), Priority::Medium);
     assert_eq!(status.count(), B5::new(21));
-    
+     
     // Modify fields
     let updated = status
         .with_priority(Priority::Critical)
         .with_count(B5::new(7));
-    
+     
     assert_eq!(updated.to_bits(), 0b00111_11_1);
 }
 ```
@@ -102,8 +117,6 @@ The `#[bitpiece]` attribute macro is the main entry point for defining bitfield 
 Types for unsigned integers of specific bit widths:
 
 ```rust
-use bitpiece::*;
-
 let three_bits: B3 = B3::new(0b101);  // 3-bit value (0-7)
 let five_bits: B5 = B5::new(31);       // 5-bit value (0-31)
 
@@ -117,11 +130,9 @@ assert!(B3::try_new(8).is_none());   // Invalid: requires 4 bits
 
 ### Signed Arbitrary-Width Types (`SB1` - `SB64`)
 
-Types for signed integers of specific bit widths using two's complement:
+Types for signed integers of specific bit widths using two’s complement:
 
 ```rust
-use bitpiece::*;
-
 let signed: SB5 = SB5::new(-10);  // 5-bit signed value (-16 to 15)
 
 assert_eq!(signed.get(), -10);
@@ -143,8 +154,6 @@ All standard Rust integer types implement `BitPiece`:
 - Signed: `i8`, `i16`, `i32`, `i64`
 
 ```rust
-use bitpiece::*;
-
 #[bitpiece(48, all)]
 struct MixedTypes {
     byte: u8,      // 8 bits
@@ -159,8 +168,6 @@ struct MixedTypes {
 `bool` is a 1-bit type:
 
 ```rust
-use bitpiece::*;
-
 #[bitpiece(3, all)]
 struct Flags {
     read: bool,    // 1 bit
@@ -174,8 +181,6 @@ struct Flags {
 Structs are the primary way to define composite bitfields. Fields are packed in order from least significant bit (LSB) to most significant bit (MSB).
 
 ```rust
-use bitpiece::*;
-
 #[bitpiece(16, all)]
 #[derive(Debug, PartialEq, Eq)]
 struct Instruction {
@@ -217,8 +222,6 @@ Enums can be used as bitfield types. The bit width is automatically calculated f
 When all possible bit patterns map to valid variants:
 
 ```rust
-use bitpiece::*;
-
 #[bitpiece(2, all)]  // 2 bits = 4 possible values
 #[derive(Debug, PartialEq, Eq)]
 enum Direction {
@@ -238,8 +241,6 @@ assert_eq!(dir, Direction::South);
 When not all bit patterns are valid variants:
 
 ```rust
-use bitpiece::*;
-
 #[bitpiece(all)]  // Auto-calculated: 7 bits needed for value 100
 #[derive(Debug, PartialEq, Eq)]
 enum ErrorCode {
@@ -263,8 +264,6 @@ assert!(ErrorCode::try_from_bits(50).is_some());
 You can specify a larger bit length than required:
 
 ```rust
-use bitpiece::*;
-
 #[bitpiece(16, all)]  // Use 16 bits even though values fit in fewer
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
@@ -312,14 +311,14 @@ struct Example {
 
 ### Core Methods
 
-```rust
+```rust, ignore
 impl MyStruct {
     // Create from raw bits (panics if invalid for non-exhaustive types)
     pub const fn from_bits(bits: StorageTy) -> Self;
-    
+     
     // Try to create from raw bits (returns None if invalid)
     pub const fn try_from_bits(bits: StorageTy) -> Option<Self>;
-    
+     
     // Convert to raw bits
     pub const fn to_bits(self) -> StorageTy;
 }
@@ -345,8 +344,6 @@ impl BitPiece for MyStruct {
 - `MAX`: The maximum representable value. For `i8`, this is `127`.
 
 ```rust
-use bitpiece::*;
-
 // For unsigned types: ZEROES == MIN, ONES == MAX
 assert_eq!(B8::ZEROES.get(), 0);
 assert_eq!(B8::ONES.get(), 255);
@@ -436,8 +433,6 @@ When you apply `#[bitpiece]` to a type, any attributes you place on the type (su
 The `Clone` and `Copy` traits are **automatically derived** on all bitpiece types. You do not need to (and should not) manually derive these traits:
 
 ```rust
-use bitpiece::*;
-
 // Clone and Copy are automatically derived - don't include them!
 #[bitpiece(8, all)]
 #[derive(Debug, PartialEq, Eq)]  // No Clone, Copy needed
@@ -464,8 +459,6 @@ This automatic derivation ensures that all bitpiece types satisfy the `Copy` bou
 You can derive additional traits like `Debug`, `PartialEq`, `Eq`, `Hash`, or even third-party traits like `serde::Serialize` and `serde::Deserialize`:
 
 ```rust
-use bitpiece::*;
-
 #[bitpiece(16, all)]
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct Packet {
@@ -582,8 +575,6 @@ assert_eq!(container.inner().get(), 15);
 Bitfield types can be nested within other bitfields:
 
 ```rust
-use bitpiece::*;
-
 #[bitpiece(4, all)]
 #[derive(Debug, PartialEq, Eq)]
 struct Inner {
@@ -678,8 +669,6 @@ assert_eq!(val.d(), B3::new(5));
 All operations work in `const` contexts:
 
 ```rust
-use bitpiece::*;
-
 #[bitpiece(8, all)]
 struct Config {
     mode: B2,
@@ -725,28 +714,28 @@ All bitfield types implement the `BitPiece` trait:
 pub trait BitPiece: Copy {
     /// The length in bits of this type
     const BITS: usize;
-    
+     
     /// A value with all bits set to 0 (see note below for enums)
     const ZEROES: Self;
-    
+     
     /// A value with all bits set to 1 (see note below for enums)
     const ONES: Self;
-    
+     
     /// The minimum representable value
     const MIN: Self;
-    
+     
     /// The maximum representable value
     const MAX: Self;
-    
+     
     /// The storage type used internally
     type Bits: BitStorage;
-    
+     
     /// Try to create from raw bits
     fn try_from_bits(bits: Self::Bits) -> Option<Self>;
-    
+     
     /// Create from raw bits (may panic)
     fn from_bits(bits: Self::Bits) -> Self;
-    
+     
     /// Convert to raw bits
     fn to_bits(self) -> Self::Bits;
 }
@@ -755,12 +744,10 @@ pub trait BitPiece: Copy {
 ### Using the Trait Generically
 
 ```rust
-use bitpiece::*;
-
-fn print_bitpiece_info<T: BitPiece + core::fmt::Debug>(value: T) {
+fn print_bitpiece_info<T: BitPiece + core::fmt::Debug>(value: T)
+{
     println!("Bits: {}", T::BITS);
     println!("Value: {:?}", value);
-    println!("Raw: {:?}", value.to_bits());
 }
 ```
 
@@ -769,8 +756,6 @@ fn print_bitpiece_info<T: BitPiece + core::fmt::Debug>(value: T) {
 ### Safe Conversion with `try_from_bits`
 
 ```rust
-use bitpiece::*;
-
 #[bitpiece(all)]
 #[derive(Debug, PartialEq, Eq)]
 enum Status {
@@ -809,8 +794,8 @@ The `new` and `from_bits` methods panic on invalid input:
 
 ```rust
 // These will panic:
-// let _ = B3::new(8);           // Value doesn't fit
-// let _ = Status::from_bits(5); // Invalid variant
+let _ = B3::new(8);           // Value doesn't fit
+let _ = Status::from_bits(5); // Invalid variant
 ```
 
 ## Fields Struct
@@ -908,6 +893,4 @@ assert_eq!(val.storage, 0xABC);
 let storage: u16 = val.storage;
 ```
 
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
+<!-- cargo-reedme: end -->

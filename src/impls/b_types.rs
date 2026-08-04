@@ -115,7 +115,7 @@ macro_rules! define_b_type {
             /// creates a new instance of this bitfield type with the given value, without checking that the value
             /// fits within the bit length of this type.
             ///
-            /// # safety
+            /// # Safety
             /// the provided value must fit within the bit length of this type.
             pub const unsafe fn new_unchecked(value: $storage) -> Self {
                 Self(value)

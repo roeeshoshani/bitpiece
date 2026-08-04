@@ -33,7 +33,7 @@ fn get_zeroes<T: BitPiece>() -> T {
 
 #[test]
 fn generic_zeroes() {
-    assert_eq!(get_zeroes::<bool>(), false);
+    assert!(!get_zeroes::<bool>());
     assert_eq!(get_zeroes::<u8>(), 0);
     assert_eq!(get_zeroes::<i8>(), 0);
     assert_eq!(get_zeroes::<B8>(), B8::new(0));
@@ -46,7 +46,7 @@ fn get_ones<T: BitPiece>() -> T {
 
 #[test]
 fn generic_ones() {
-    assert_eq!(get_ones::<bool>(), true);
+    assert!(get_ones::<bool>());
     assert_eq!(get_ones::<u8>(), 255);
     assert_eq!(get_ones::<i8>(), -1);
     assert_eq!(get_ones::<B8>(), B8::new(255));
@@ -59,7 +59,7 @@ fn get_min<T: BitPiece>() -> T {
 
 #[test]
 fn generic_min() {
-    assert_eq!(get_min::<bool>(), false);
+    assert!(!get_min::<bool>());
     assert_eq!(get_min::<u8>(), 0);
     assert_eq!(get_min::<i8>(), i8::MIN);
     assert_eq!(get_min::<B8>(), B8::new(0));
@@ -72,7 +72,7 @@ fn get_max<T: BitPiece>() -> T {
 
 #[test]
 fn generic_max() {
-    assert_eq!(get_max::<bool>(), true);
+    assert!(get_max::<bool>());
     assert_eq!(get_max::<u8>(), u8::MAX);
     assert_eq!(get_max::<i8>(), i8::MAX);
     assert_eq!(get_max::<B8>(), B8::new(u8::MAX));
@@ -89,8 +89,8 @@ fn roundtrip<T: BitPiece>(value: T) -> T {
 
 #[test]
 fn generic_roundtrip() {
-    assert_eq!(roundtrip(true), true);
-    assert_eq!(roundtrip(false), false);
+    assert!(roundtrip(true));
+    assert!(!roundtrip(false));
     assert_eq!(roundtrip(42u8), 42u8);
     assert_eq!(roundtrip(-42i8), -42i8);
     assert_eq!(roundtrip(B8::new(100)), B8::new(100));
@@ -135,6 +135,9 @@ fn generic_with_debug_bound() {
 // BitPieceHasMutRef trait tests
 // =============================================================================
 
+// The type parameter is only used for its trait bound, which is what makes this function useful, since it verifies
+// that the provided type implements the trait at compile time.
+#[allow(clippy::extra_unused_type_parameters)]
 fn has_mut_ref<T: BitPieceHasMutRef>() -> bool {
     true
 }
@@ -158,6 +161,9 @@ fn types_have_mut_ref() {
 // BitPieceHasFields trait tests
 // =============================================================================
 
+// The type parameter is only used for its trait bound, which is what makes this function useful, since it verifies
+// that the provided type implements the trait at compile time.
+#[allow(clippy::extra_unused_type_parameters)]
 fn has_fields<T: BitPieceHasFields>() -> bool {
     true
 }
@@ -186,7 +192,7 @@ where
 
 #[test]
 fn generic_fields_roundtrip() {
-    assert_eq!(fields_roundtrip(true), true);
+    assert!(fields_roundtrip(true));
     assert_eq!(fields_roundtrip(42u8), 42u8);
     assert_eq!(fields_roundtrip(B8::new(100)), B8::new(100));
 }

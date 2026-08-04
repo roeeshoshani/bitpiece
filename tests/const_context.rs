@@ -1,5 +1,12 @@
 //! Tests for const context usage.
 
+// This file tests that the api of the crate can be used in const contexts, so the values which are being asserted on
+// here are usually constants, which is exactly what we want to test here.
+#![allow(clippy::assertions_on_constants)]
+// The digits of the binary literals in this file are deliberately grouped according to the bit fields that they
+// represent, and not into groups of equal size.
+#![allow(clippy::unusual_byte_groupings)]
+
 use bitpiece::*;
 
 // =============================================================================
@@ -26,7 +33,7 @@ const DEFAULT_CONFIG: Config = Config::from_bits(0b00_1_101_01);
 fn const_from_bits() {
     assert_eq!(DEFAULT_CONFIG.mode(), B2::new(1));
     assert_eq!(DEFAULT_CONFIG.speed(), B3::new(5));
-    assert_eq!(DEFAULT_CONFIG.enabled(), true);
+    assert!(DEFAULT_CONFIG.enabled());
     assert_eq!(DEFAULT_CONFIG.reserved(), B2::new(0));
 }
 
@@ -55,7 +62,7 @@ const IS_ENABLED: bool = DEFAULT_CONFIG.enabled();
 fn const_field_access() {
     assert_eq!(DEFAULT_MODE.get(), 1);
     assert_eq!(DEFAULT_SPEED.get(), 5);
-    assert_eq!(IS_ENABLED, true);
+    assert!(IS_ENABLED);
 }
 
 // =============================================================================
@@ -71,7 +78,7 @@ const MODIFIED_CONFIG: Config = DEFAULT_CONFIG
 
 #[test]
 fn const_with_methods() {
-    assert_eq!(DISABLED_CONFIG.enabled(), false);
+    assert!(!DISABLED_CONFIG.enabled());
     assert_eq!(DISABLED_CONFIG.mode(), B2::new(1)); // unchanged
 
     assert_eq!(FAST_CONFIG.speed(), B3::new(7));
@@ -79,7 +86,7 @@ fn const_with_methods() {
 
     assert_eq!(MODIFIED_CONFIG.mode(), B2::new(3));
     assert_eq!(MODIFIED_CONFIG.speed(), B3::new(0));
-    assert_eq!(MODIFIED_CONFIG.enabled(), false);
+    assert!(!MODIFIED_CONFIG.enabled());
 }
 
 // =============================================================================
@@ -88,8 +95,8 @@ fn const_with_methods() {
 
 const _: () = assert!(DEFAULT_MODE.get() == 1);
 const _: () = assert!(DEFAULT_SPEED.get() == 5);
-const _: () = assert!(IS_ENABLED == true);
-const _: () = assert!(DISABLED_CONFIG.enabled() == false);
+const _: () = assert!(IS_ENABLED);
+const _: () = assert!(!DISABLED_CONFIG.enabled());
 
 // =============================================================================
 // Const functions
@@ -108,7 +115,7 @@ const CUSTOM_CONFIG: Config = create_config(2, 5, true);
 fn const_function() {
     assert_eq!(CUSTOM_CONFIG.mode(), B2::new(2));
     assert_eq!(CUSTOM_CONFIG.speed(), B3::new(5));
-    assert_eq!(CUSTOM_CONFIG.enabled(), true);
+    assert!(CUSTOM_CONFIG.enabled());
 }
 
 // =============================================================================
@@ -270,7 +277,7 @@ const CONFIG_TO_FIELDS: ConfigFields = CONFIG_FROM_FIELDS.to_fields();
 fn const_from_to_fields() {
     assert_eq!(CONFIG_FROM_FIELDS.mode(), B2::new(2));
     assert_eq!(CONFIG_FROM_FIELDS.speed(), B3::new(4));
-    assert_eq!(CONFIG_FROM_FIELDS.enabled(), true);
+    assert!(CONFIG_FROM_FIELDS.enabled());
     assert_eq!(CONFIG_FROM_FIELDS.reserved(), B2::new(1));
 
     assert_eq!(CONFIG_TO_FIELDS.mode, B2::new(2));
@@ -339,7 +346,7 @@ const I8_EQ: bool = BitPieceI8Converter::const_eq(-1, -1);
 
 #[test]
 fn const_primitive_operations() {
-    assert_eq!(BOOL_FROM, true);
+    assert!(BOOL_FROM);
     assert_eq!(BOOL_TO, 1);
     assert!(BOOL_EQ);
 
@@ -396,7 +403,7 @@ const MODIFIED_FROM_ARRAY: Config = extract_and_modify(CONFIG_ARRAY, 1);
 
 #[test]
 fn const_generic_like() {
-    assert_eq!(MODIFIED_FROM_ARRAY.enabled(), false);
+    assert!(!MODIFIED_FROM_ARRAY.enabled());
     // Original value at index 1 was 0x55
     assert_eq!(
         MODIFIED_FROM_ARRAY.storage & !0b00100000,

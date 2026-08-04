@@ -1,5 +1,9 @@
 //! Tests for enum bitfields.
 
+// The digits of the binary literals in this file are deliberately grouped according to the bit fields that they
+// represent, and not into groups of equal size.
+#![allow(clippy::unusual_byte_groupings)]
+
 mod common;
 
 use bitpiece::*;
@@ -294,6 +298,8 @@ fn enum_roundtrip() {
 // Enum Clone and Copy tests
 // =============================================================================
 
+// The explicit `clone` call is the whole point of this test, so it must not be removed.
+#[allow(clippy::clone_on_copy)]
 #[test]
 fn enum_clone_copy() {
     let a = ExhaustiveEnum2::B;
@@ -318,7 +324,7 @@ bitpiece_check_full_impl! {EnumContainer, true}
 #[test]
 fn enum_in_struct() {
     let val = EnumContainer::from_bits(0b10_1);
-    assert_eq!(val.flag(), true);
+    assert!(val.flag());
     assert_eq!(val.dir(), ExhaustiveEnum2::C);
 }
 
@@ -437,8 +443,11 @@ enum Enum16Bit {
     B = 65535,
 }
 
+// The explicit `repr` is required because the largest discriminant of this enum does not fit in an `isize` on 32 bit
+// targets, and `isize` is the default representation of a c-like enum.
 #[bitpiece(32, all)]
 #[derive(Debug, PartialEq, Eq)]
+#[repr(u32)]
 enum Enum32Bit {
     A = 0,
     B = 4294967295,

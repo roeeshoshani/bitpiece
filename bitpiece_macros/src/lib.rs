@@ -156,7 +156,8 @@ impl OptInArgsCollector {
             ));
             return Err(err);
         }
-        Ok(self.0.push(arg))
+        self.0.push(arg);
+        Ok(())
     }
 }
 

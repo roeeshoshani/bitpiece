@@ -80,7 +80,7 @@ impl core::ops::Add for BitLenExpr {
         })
     }
 }
-impl<'a> core::ops::Add for &'a BitLenExpr {
+impl core::ops::Add for &BitLenExpr {
     type Output = BitLenExpr;
 
     fn add(self, rhs: Self) -> Self::Output {

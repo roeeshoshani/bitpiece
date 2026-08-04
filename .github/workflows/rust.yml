@@ -1,22 +1,88 @@
-name: Rust
+name: CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [master]
   pull_request:
-    branches: [ "master" ]
+    branches: [master]
 
 env:
-  CARGO_TERM_COLOR: always
+  CARGO_ALL_FEATURES_VERSION: "1.12.0"
+  CARGO_REEDME_VERSION: "0.6.1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-
+  check:
     runs-on: ubuntu-latest
-
+    env:
+      RUSTFLAGS: -D warnings
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: cargo install --locked cargo-all-features@$CARGO_ALL_FEATURES_VERSION
+      - run: cargo all-features check --all-targets
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: cargo install --locked cargo-all-features@$CARGO_ALL_FEATURES_VERSION
+      - run: cargo all-features test
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - run: cargo fmt --all --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - run: cargo install --locked cargo-all-features@$CARGO_ALL_FEATURES_VERSION
+      - run: cargo all-features clippy --all-targets -- -D warnings
+
+  readme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - run: cargo +nightly install --locked cargo-reedme@$CARGO_REEDME_VERSION
+      - run: cargo +nightly reedme --check
+
+  doc:
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: cargo install --locked cargo-all-features@$CARGO_ALL_FEATURES_VERSION
+      - run: cargo all-features doc --no-deps
+
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: crate-ci/typos@v1.49.0
