@@ -1,5 +1,9 @@
 //! Tests for nested bitfields.
 
+// The digits of the binary literals in this file are deliberately grouped according to the bit fields that they
+// represent, and not into groups of equal size.
+#![allow(clippy::unusual_byte_groupings)]
+
 use bitpiece::*;
 
 // =============================================================================
@@ -365,7 +369,7 @@ fn complex_nested_struct() {
     assert_eq!(val.inner().x(), B2::new(3));
     assert_eq!(val.inner().y(), B2::new(0));
     assert_eq!(val.byte(), 0xFF);
-    assert_eq!(val.flag(), true);
+    assert!(val.flag());
     assert_eq!(val.small(), B3::new(5));
 }
 
@@ -382,7 +386,7 @@ fn complex_nested_from_fields() {
     assert_eq!(val.inner().x(), B2::new(1));
     assert_eq!(val.inner().y(), B2::new(2));
     assert_eq!(val.byte(), 0xAB);
-    assert_eq!(val.flag(), false);
+    assert!(!val.flag());
     assert_eq!(val.small(), B3::new(7));
 }
 

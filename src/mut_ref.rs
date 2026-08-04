@@ -23,7 +23,7 @@ impl<'a> BitPieceStorageMutRef<'a> {
     #[inline(always)]
     pub const fn get(&self) -> u64 {
         match self {
-            BitPieceStorageMutRef::U64(x) => **x as u64,
+            BitPieceStorageMutRef::U64(x) => **x,
             BitPieceStorageMutRef::U32(x) => **x as u64,
             BitPieceStorageMutRef::U16(x) => **x as u64,
             BitPieceStorageMutRef::U8(x) => **x as u64,
@@ -33,7 +33,7 @@ impl<'a> BitPieceStorageMutRef<'a> {
     #[inline(always)]
     pub const fn set(&mut self, new_value: u64) {
         match self {
-            BitPieceStorageMutRef::U64(x) => **x = new_value as u64,
+            BitPieceStorageMutRef::U64(x) => **x = new_value,
             BitPieceStorageMutRef::U32(x) => **x = new_value as u32,
             BitPieceStorageMutRef::U16(x) => **x = new_value as u16,
             BitPieceStorageMutRef::U8(x) => **x = new_value as u8,

@@ -32,8 +32,6 @@ pub fn gen_explicit_bit_length_assertion(
         Some(explicit_bit_length) => quote! {
             const _: () = if (#explicit_bit_length) != (#actual_bit_length) {
                 panic!("explicit bit length does not match actual bit length")
-            } else {
-                ()
             };
         },
         None => quote! {},
@@ -48,7 +46,7 @@ pub struct BitPieceGenImplParams<'a> {
     /// the visibility of the type for which the trait is to be implemented.
     pub type_vis: &'a syn::Visibility,
 
-    /// the arguments passed to the macro invokation.
+    /// the arguments passed to the macro invocation.
     pub macro_args: &'a MacroArgs,
 
     /// the mutable bit access type.

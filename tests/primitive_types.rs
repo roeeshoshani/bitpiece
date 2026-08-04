@@ -1,5 +1,9 @@
 //! Tests for primitive types (bool, u8-u64, i8-i64) implementing BitPiece.
 
+// Some of the values which are being asserted on here are associated constants of the `BitPiece` trait, and asserting
+// on their values is exactly what we want to test here.
+#![allow(clippy::assertions_on_constants)]
+
 use bitpiece::*;
 
 // =============================================================================
@@ -13,23 +17,23 @@ fn bool_bits_constant() {
 
 #[test]
 fn bool_zeroes_ones() {
-    assert_eq!(<bool as BitPiece>::ZEROES, false);
-    assert_eq!(<bool as BitPiece>::ONES, true);
+    assert!(!<bool as BitPiece>::ZEROES);
+    assert!(<bool as BitPiece>::ONES);
 }
 
 #[test]
 fn bool_min_max() {
-    assert_eq!(<bool as BitPiece>::MIN, false);
-    assert_eq!(<bool as BitPiece>::MAX, true);
+    assert!(!<bool as BitPiece>::MIN);
+    assert!(<bool as BitPiece>::MAX);
 }
 
 #[test]
 fn bool_from_bits() {
-    assert_eq!(bool::from_bits(0), false);
-    assert_eq!(bool::from_bits(1), true);
+    assert!(!bool::from_bits(0));
+    assert!(bool::from_bits(1));
     // Any non-zero value is true
-    assert_eq!(bool::from_bits(2), true);
-    assert_eq!(bool::from_bits(255), true);
+    assert!(bool::from_bits(2));
+    assert!(bool::from_bits(255));
 }
 
 #[test]
@@ -48,8 +52,8 @@ fn bool_to_bits() {
 
 #[test]
 fn bool_roundtrip() {
-    assert_eq!(bool::from_bits(false.to_bits()), false);
-    assert_eq!(bool::from_bits(true.to_bits()), true);
+    assert!(!bool::from_bits(false.to_bits()));
+    assert!(bool::from_bits(true.to_bits()));
 }
 
 #[test]

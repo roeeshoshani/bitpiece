@@ -427,8 +427,8 @@ fn gen_try_from_bits_code(
     }
 }
 
-fn gen_to_fields<'a>(
-    fields: &'a FieldsNamed,
+fn gen_to_fields(
+    fields: &FieldsNamed,
     fields_struct_ident: &syn::Ident,
 ) -> proc_macro2::TokenStream {
     let field_initializers = fields.named.iter().map(|field| {

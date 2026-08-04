@@ -1,5 +1,9 @@
 //! Tests for mutable references (MutRef).
 
+// The digits of the binary literals in this file are deliberately grouped according to the bit fields that they
+// represent, and not into groups of equal size.
+#![allow(clippy::unusual_byte_groupings)]
+
 use bitpiece::*;
 
 // =============================================================================
@@ -81,11 +85,11 @@ fn mut_ref_bool_field() {
 
     {
         let mut flag_ref = val.flag_mut();
-        assert_eq!(flag_ref.get(), false);
+        assert!(!flag_ref.get());
         flag_ref.set(true);
     }
 
-    assert_eq!(val.flag(), true);
+    assert!(val.flag());
     assert_eq!(val.value(), B3::new(0));
 }
 

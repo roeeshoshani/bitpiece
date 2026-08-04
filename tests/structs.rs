@@ -1,5 +1,9 @@
 //! Tests for struct bitfields.
 
+// The digits of the binary literals in this file are deliberately grouped according to the bit fields that they
+// represent, and not into groups of equal size.
+#![allow(clippy::unusual_byte_groupings)]
+
 mod common;
 
 use bitpiece::*;
@@ -263,11 +267,11 @@ bitpiece_check_full_impl! {StructWithBool, true}
 #[test]
 fn struct_with_bool_field() {
     let val = StructWithBool::from_bits(0b101_1);
-    assert_eq!(val.flag(), true);
+    assert!(val.flag());
     assert_eq!(val.value(), B3::new(5));
 
     let val = StructWithBool::from_bits(0b101_0);
-    assert_eq!(val.flag(), false);
+    assert!(!val.flag());
     assert_eq!(val.value(), B3::new(5));
 }
 
@@ -275,7 +279,7 @@ fn struct_with_bool_field() {
 fn struct_with_bool_setters() {
     let mut val = StructWithBool::ZEROES;
     val.set_flag(true);
-    assert_eq!(val.flag(), true);
+    assert!(val.flag());
     assert_eq!(val.storage, 0b000_1);
 
     val.set_value(B3::new(7));
@@ -303,7 +307,7 @@ fn struct_with_signed_extraction() {
     let val = StructWithSigned::from_bits(raw);
     assert_eq!(val.a(), B3::new(5));
     assert_eq!(val.b(), -1i8);
-    assert_eq!(val.c(), true);
+    assert!(val.c());
 }
 
 #[test]
@@ -351,7 +355,7 @@ fn struct_with_sb_extraction() {
     let raw = 0b101_0101010_1_11111;
     let val = StructWithSb::from_bits(raw);
     assert_eq!(val.a(), SB5::new(-1));
-    assert_eq!(val.b(), true);
+    assert!(val.b());
     assert_eq!(val.c(), SB7::new(42));
     assert_eq!(val.d(), B3::new(5));
 }
@@ -507,6 +511,8 @@ fn struct_field_mut_multiple() {
 // Clone and Copy tests
 // =============================================================================
 
+// The explicit `clone` call is the whole point of this test, so it must not be removed.
+#[allow(clippy::clone_on_copy)]
 #[test]
 fn struct_clone_copy() {
     let a = BasicStruct::from_bits(0b10101_011);
@@ -547,7 +553,7 @@ fn struct_with_sparse_enum_valid() {
     // bits = 0b01_1_001010 = 0b011001010
     let val = StructWithSparseEnum::from_bits(0b01_1_001010);
     assert_eq!(val.val(), SparseEnum::B);
-    assert_eq!(val.flag(), true);
+    assert!(val.flag());
     assert_eq!(val.extra(), B2::new(1));
 }
 

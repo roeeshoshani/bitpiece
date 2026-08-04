@@ -302,6 +302,8 @@ fn sb_type_default() {
 // Clone and Copy tests
 // =============================================================================
 
+// The explicit `clone` call is the whole point of this test, so it must not be removed.
+#[allow(clippy::clone_on_copy)]
 #[test]
 fn sb_type_clone_copy() {
     let a = SB8::new(-42);
