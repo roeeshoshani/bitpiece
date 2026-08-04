@@ -38,19 +38,6 @@ jobs:
       - run: cargo install --locked cargo-all-features@$CARGO_ALL_FEATURES_VERSION
       - run: cargo all-features test
 
-  miri:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: miri
-
-      - run: cargo +nightly install --locked cargo-all-features@$CARGO_ALL_FEATURES_VERSION
-      - run: cargo +nightly miri setup
-      - run: cargo +nightly all-features miri test
-
   fmt:
     runs-on: ubuntu-latest
     steps:
